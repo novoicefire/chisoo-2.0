@@ -1,0 +1,151 @@
+{
+  "type": "bubble",
+  "size": "mega",
+  "header": {
+    "type": "box",
+    "layout": "vertical",
+    "contents": [
+      {
+        "type": "text",
+        "text": "🎯 租屋人格診斷書",
+        "weight": "bold",
+        "size": "lg",
+        "color": "#FFFFFF"
+      }
+    ],
+    "backgroundColor": "#6366F1",
+    "paddingAll": "15px"
+  },
+  "body": {
+    "type": "box",
+    "layout": "vertical",
+    "contents": [
+      {
+        "type": "text",
+        "text": "你是：",
+        "size": "md",
+        "color": "#666666"
+      },
+      {
+        "type": "text",
+        "text": "{{PERSONA_NAME}}",
+        "weight": "bold",
+        "size": "xxl",
+        "margin": "md",
+        "color": "#1a1a1a"
+      },
+      {
+        "type": "separator",
+        "margin": "lg"
+      },
+      {
+        "type": "text",
+        "text": "{{PERSONA_DESCRIPTION}}",
+        "wrap": true,
+        "color": "#666666",
+        "size": "sm",
+        "margin": "lg"
+      },
+      {
+        "type": "separator",
+        "margin": "lg"
+      },
+      {
+        "type": "box",
+        "layout": "vertical",
+        "margin": "lg",
+        "contents": [
+          {
+            "type": "text",
+            "text": "📊 匹配分析",
+            "weight": "bold",
+            "size": "md"
+          },
+          {
+            "type": "box",
+            "layout": "horizontal",
+            "margin": "md",
+            "contents": [
+              {
+                "type": "text",
+                "text": "匹配度",
+                "size": "sm",
+                "color": "#666666",
+                "flex": 1
+              },
+              {
+                "type": "text",
+                "text": "{{MATCH_SCORE}}%",
+                "size": "sm",
+                "color": "#6366F1",
+                "weight": "bold",
+                "flex": 1,
+                "align": "end"
+              }
+            ]
+          },
+          {
+            "type": "box",
+            "layout": "horizontal",
+            "margin": "sm",
+            "contents": [
+              {
+                "type": "text",
+                "text": "預算契合",
+                "size": "sm",
+                "color": "#666666",
+                "flex": 1
+              },
+              {
+                "type": "text",
+                "text": "{{BUDGET_MATCH}}",
+                "size": "sm",
+                "color": "#22C55E",
+                "flex": 1,
+                "align": "end"
+              }
+            ]
+          },
+          {
+            "type": "box",
+            "layout": "horizontal",
+            "margin": "sm",
+            "contents": [
+              {
+                "type": "text",
+                "text": "設施匹配",
+                "size": "sm",
+                "color": "#666666",
+                "flex": 1
+              },
+              {
+                "type": "text",
+                "text": "{{FEATURES_MATCH}}",
+                "size": "sm",
+                "color": "#22C55E",
+                "flex": 1,
+                "align": "end"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "footer": {
+    "type": "box",
+    "layout": "vertical",
+    "contents": [
+      {
+        "type": "button",
+        "action": {
+          "type": "postback",
+          "label": "🏠 顯示推薦房源",
+          "data": "action=show_recommendations&persona={{PERSONA_ID}}"
+        },
+        "style": "primary",
+        "color": "#6366F1"
+      }
+    ]
+  }
+}

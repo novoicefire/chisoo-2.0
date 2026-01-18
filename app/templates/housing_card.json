@@ -1,0 +1,199 @@
+{
+    "type": "bubble",
+    "size": "mega",
+    "hero": {
+        "type": "image",
+        "url": "{{IMAGE_URL}}",
+        "size": "full",
+        "aspectRatio": "20:13",
+        "aspectMode": "cover"
+    },
+    "body": {
+        "type": "box",
+        "layout": "vertical",
+        "contents": [
+            {
+                "type": "box",
+                "layout": "horizontal",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "{{HOUSE_NAME}}",
+                        "weight": "bold",
+                        "size": "lg",
+                        "flex": 4
+                    },
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": "${{RENT}}/月",
+                                "size": "sm",
+                                "color": "#FFFFFF",
+                                "align": "center"
+                            }
+                        ],
+                        "backgroundColor": "#6366F1",
+                        "cornerRadius": "md",
+                        "paddingAll": "5px",
+                        "flex": 2
+                    }
+                ]
+            },
+            {
+                "type": "box",
+                "layout": "horizontal",
+                "margin": "md",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "⭐ {{RATING}}",
+                        "size": "sm",
+                        "color": "#F59E0B"
+                    },
+                    {
+                        "type": "text",
+                        "text": "·",
+                        "size": "sm",
+                        "color": "#AAAAAA",
+                        "margin": "sm"
+                    },
+                    {
+                        "type": "text",
+                        "text": "{{ROOM_TYPE}}",
+                        "size": "sm",
+                        "color": "#666666",
+                        "margin": "sm"
+                    },
+                    {
+                        "type": "text",
+                        "text": "·",
+                        "size": "sm",
+                        "color": "#AAAAAA",
+                        "margin": "sm"
+                    },
+                    {
+                        "type": "text",
+                        "text": "匹配 {{MATCH_PERCENT}}% 🔥",
+                        "size": "sm",
+                        "color": "#EF4444",
+                        "margin": "sm"
+                    }
+                ]
+            },
+            {
+                "type": "separator",
+                "margin": "lg"
+            },
+            {
+                "type": "text",
+                "text": "{{RECOMMENDATION_REASON}}",
+                "wrap": true,
+                "color": "#666666",
+                "size": "sm",
+                "margin": "lg"
+            },
+            {
+                "type": "box",
+                "layout": "horizontal",
+                "margin": "lg",
+                "contents": [
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": "{{FEATURE_1}}",
+                                "size": "xs",
+                                "color": "#6366F1",
+                                "align": "center"
+                            }
+                        ],
+                        "backgroundColor": "#EEF2FF",
+                        "cornerRadius": "md",
+                        "paddingAll": "5px"
+                    },
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": "{{FEATURE_2}}",
+                                "size": "xs",
+                                "color": "#6366F1",
+                                "align": "center"
+                            }
+                        ],
+                        "backgroundColor": "#EEF2FF",
+                        "cornerRadius": "md",
+                        "paddingAll": "5px",
+                        "margin": "sm"
+                    },
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": "{{FEATURE_3}}",
+                                "size": "xs",
+                                "color": "#6366F1",
+                                "align": "center"
+                            }
+                        ],
+                        "backgroundColor": "#EEF2FF",
+                        "cornerRadius": "md",
+                        "paddingAll": "5px",
+                        "margin": "sm"
+                    }
+                ]
+            }
+        ]
+    },
+    "footer": {
+        "type": "box",
+        "layout": "horizontal",
+        "contents": [
+            {
+                "type": "button",
+                "action": {
+                    "type": "postback",
+                    "label": "❤️ 收藏",
+                    "data": "action=add_favorite&house_id={{HOUSE_ID}}"
+                },
+                "style": "secondary",
+                "height": "sm",
+                "flex": 1
+            },
+            {
+                "type": "button",
+                "action": {
+                    "type": "uri",
+                    "label": "📄 詳情",
+                    "uri": "{{DETAIL_URL}}"
+                },
+                "style": "primary",
+                "color": "#6366F1",
+                "height": "sm",
+                "flex": 1,
+                "margin": "sm"
+            },
+            {
+                "type": "button",
+                "action": {
+                    "type": "uri",
+                    "label": "✍️ 評價",
+                    "uri": "{{REVIEW_URL}}"
+                },
+                "style": "secondary",
+                "height": "sm",
+                "flex": 1,
+                "margin": "sm"
+            }
+        ]
+    }
+}

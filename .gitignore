@@ -1,0 +1,75 @@
+# ============================================================
+# .gitignore - Git 忽略檔案清單
+# 專案：Chi Soo 租屋小幫手
+# ============================================================
+
+# === 環境變數 (敏感資訊) ===
+.env
+.env.local
+.env.production
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# === 虛擬環境 ===
+venv/
+ENV/
+env/
+.venv/
+
+# === IDE ===
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# === 測試與覆蓋率 ===
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# === 日誌與暫存 ===
+*.log
+*.tmp
+/tmp/
+
+# === 資料庫 ===
+*.db
+*.sqlite3
+
+# === 上傳檔案 ===
+uploads/
+student_cards/
+
+# === Node.js (LIFF) ===
+node_modules/
+.next/
+out/
+.nuxt/
+dist/
+
+# === 系統檔案 ===
+.DS_Store
+Thumbs.db

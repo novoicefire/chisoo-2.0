@@ -1,0 +1,25 @@
+# Requirements for Puli Rental Bot (Chi Soo)
+# Project: LINE Bot Rental Consultant System
+
+# Web Framework
+flask>=3.0.0
+flask-cors>=4.0.0
+
+# LINE Messaging API
+line-bot-sdk>=3.0.0
+
+# Database ORM and Driver
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+
+# HTTP Client (for Ollama API)
+requests>=2.31.0
+
+# Environment Variables
+python-dotenv>=1.0.0
+
+# Image Processing (Rich Menu)
+pillow>=10.0.0
+
+# Development Tools
+pytest>=7.0.0
