@@ -20,8 +20,7 @@ class Config:
     
     # === Ollama AI 設定 ===
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    OLLAMA_MODEL_4B: str = os.getenv("OLLAMA_MODEL_4B", "gemma3:4b")
-    OLLAMA_MODEL_1B: str = os.getenv("OLLAMA_MODEL_1B", "gemma3:1b")
+    OLLAMA_MODEL_4B: str = os.getenv("OLLAMA_MODEL_4B", "qwen3:8b")
     
     # === 資料庫設定 ===
     DATABASE_URL: str = os.getenv(
@@ -63,8 +62,7 @@ class Config:
         print(f"LINE Token: {'✓ 已設定' if cls.LINE_CHANNEL_ACCESS_TOKEN else '✗ 未設定'}")
         print(f"LINE Secret: {'✓ 已設定' if cls.LINE_CHANNEL_SECRET else '✗ 未設定'}")
         print(f"Ollama URL: {cls.OLLAMA_BASE_URL}")
-        print(f"Ollama 4B Model: {cls.OLLAMA_MODEL_4B}")
-        print(f"Ollama 1B Model: {cls.OLLAMA_MODEL_1B}")
+        print(f"Ollama Model: {cls.OLLAMA_MODEL_4B}")
         print(f"Database: {'✓ 已設定' if 'localhost' not in cls.DATABASE_URL else cls.DATABASE_URL}")
         print(f"Base URL: {cls.BASE_URL}")
         print(f"Google Maps: {'✓ 已設定' if cls.GOOGLE_MAPS_API_KEY else '✗ 未設定'}")

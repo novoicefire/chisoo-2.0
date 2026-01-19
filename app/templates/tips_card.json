@@ -1,0 +1,83 @@
+{
+    "type": "bubble",
+    "size": "kilo",
+    "header": {
+        "type": "box",
+        "layout": "vertical",
+        "contents": [
+            {
+                "type": "text",
+                "text": "{{EMOJI}} {{TITLE}}",
+                "weight": "bold",
+                "size": "md",
+                "color": "#FFFFFF"
+            }
+        ],
+        "backgroundColor": "{{THEME_COLOR}}",
+        "paddingAll": "15px"
+    },
+    "body": {
+        "type": "box",
+        "layout": "vertical",
+        "contents": [
+            {
+                "type": "text",
+                "text": "{{SUBTITLE}}",
+                "weight": "bold",
+                "size": "sm",
+                "color": "#1a1a1a"
+            },
+            {
+                "type": "separator",
+                "margin": "md"
+            },
+            {
+                "type": "box",
+                "layout": "vertical",
+                "margin": "md",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "• {{TIP_1}}",
+                        "size": "sm",
+                        "color": "#666666",
+                        "wrap": true
+                    },
+                    {
+                        "type": "text",
+                        "text": "• {{TIP_2}}",
+                        "size": "sm",
+                        "color": "#666666",
+                        "wrap": true,
+                        "margin": "sm"
+                    },
+                    {
+                        "type": "text",
+                        "text": "• {{TIP_3}}",
+                        "size": "sm",
+                        "color": "#666666",
+                        "wrap": true,
+                        "margin": "sm"
+                    }
+                ]
+            }
+        ]
+    },
+    "footer": {
+        "type": "box",
+        "layout": "vertical",
+        "contents": [
+            {
+                "type": "button",
+                "action": {
+                    "type": "postback",
+                    "label": "{{BUTTON_LABEL}}",
+                    "data": "action=show_tip_detail&topic={{TOPIC_ID}}"
+                },
+                "style": "primary",
+                "color": "{{THEME_COLOR}}",
+                "height": "sm"
+            }
+        ]
+    }
+}

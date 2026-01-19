@@ -21,13 +21,14 @@ class SessionService:
     """
     
     @staticmethod
-    def get_or_create_user(user_id: str, display_name: str = None) -> User:
+    def get_or_create_user(user_id: str, display_name: str = None, picture_url: str = None) -> User:
         """
         取得或建立使用者
         
         Args:
             user_id: LINE User ID
             display_name: LINE 暱稱
+            picture_url: LINE 頭像網址
             
         Returns:
             User: 使用者實例
@@ -38,14 +39,28 @@ class SessionService:
             user = User(
                 user_id=user_id,
                 display_name=display_name,
+                picture_url=picture_url,
                 is_blocked=False
             )
             db_session.add(user)
             db_session.commit()
-        elif display_name and user.display_name != display_name:
-            # 更新暱稱
-            user.display_name = display_name
-            db_session.commit()
+        else:
+            changed = False
+            if display_name and user.display_name != display_name:
+                user.display_name = display_name
+                changed = True
+            
+            if picture_url and user.picture_url != picture_url:
+                user.picture_url = picture_url
+                changed = True
+            
+            # 確保解除封鎖狀態
+            if user.is_blocked:
+                user.is_blocked = False
+                changed = True
+            
+            if changed:
+                db_session.commit()
         
         return user
     
@@ -63,6 +78,9 @@ class SessionService:
         session = db_session.query(UserSession).filter_by(user_id=user_id).first()
         
         if not session:
+            # 先確保 user 存在 (外鍵約束)
+            SessionService.get_or_create_user(user_id)
+            
             session = UserSession(
                 user_id=user_id,
                 status="IDLE",

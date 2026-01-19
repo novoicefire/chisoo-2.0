@@ -24,7 +24,11 @@ def create_app() -> Flask:
     app.config["DEBUG"] = config.DEBUG
     
     # 啟用 CORS (供 LIFF 前端呼叫)
-    CORS(app)
+    CORS(app, origins=[
+        "https://liff-app-beige.vercel.app",
+        "https://liff.line.me",
+        "http://localhost:3000",  # 開發環境
+    ])
     
     # 驗證必要設定
     missing = config.validate()

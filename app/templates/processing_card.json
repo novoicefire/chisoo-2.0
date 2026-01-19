@@ -1,0 +1,56 @@
+{
+    "type": "bubble",
+    "size": "kilo",
+    "body": {
+        "type": "box",
+        "layout": "vertical",
+        "contents": [
+            {
+                "type": "text",
+                "text": "⏳ 分析中...",
+                "weight": "bold",
+                "size": "xl",
+                "align": "center",
+                "color": "#667eea"
+            },
+            {
+                "type": "text",
+                "text": "AI 正在根據您的偏好尋找最適合的租屋類型",
+                "wrap": true,
+                "size": "sm",
+                "align": "center",
+                "margin": "lg",
+                "color": "#888888"
+            },
+            {
+                "type": "separator",
+                "margin": "xl"
+            },
+            {
+                "type": "text",
+                "text": "請稍候約一分鐘再按下以下按鈕",
+                "size": "xs",
+                "align": "center",
+                "margin": "lg",
+                "color": "#AAAAAA"
+            }
+        ],
+        "paddingAll": "20px"
+    },
+    "footer": {
+        "type": "box",
+        "layout": "vertical",
+        "contents": [
+            {
+                "type": "button",
+                "action": {
+                    "type": "postback",
+                    "label": "🔍 查看我的分析結果",
+                    "data": "action=get_result"
+                },
+                "style": "primary",
+                "color": "#667eea"
+            }
+        ]
+    }
+}

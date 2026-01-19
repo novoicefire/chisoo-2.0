@@ -1,0 +1,87 @@
+{
+    "type": "bubble",
+    "size": "kilo",
+    "header": {
+        "type": "box",
+        "layout": "vertical",
+        "contents": [
+            {
+                "type": "text",
+                "text": "{{BADGE}}",
+                "size": "xs",
+                "color": "#FFFFFF",
+                "weight": "bold"
+            }
+        ],
+        "backgroundColor": "{{HEADER_COLOR}}",
+        "paddingAll": "10px"
+    },
+    "hero": {
+        "type": "image",
+        "url": "{{IMAGE_URL}}",
+        "size": "full",
+        "aspectRatio": "20:13",
+        "aspectMode": "cover"
+    },
+    "body": {
+        "type": "box",
+        "layout": "vertical",
+        "contents": [
+            {
+                "type": "text",
+                "text": "{{HOUSE_NAME}}",
+                "weight": "bold",
+                "size": "md",
+                "wrap": true
+            },
+            {
+                "type": "box",
+                "layout": "horizontal",
+                "margin": "md",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "⭐ {{RATING}}",
+                        "size": "sm",
+                        "color": "#F59E0B",
+                        "flex": 1
+                    },
+                    {
+                        "type": "text",
+                        "text": "${{RENT}}/月",
+                        "size": "sm",
+                        "color": "#6366F1",
+                        "weight": "bold",
+                        "flex": 1,
+                        "align": "end"
+                    }
+                ]
+            },
+            {
+                "type": "text",
+                "text": "{{SUMMARY}}",
+                "size": "xs",
+                "color": "#888888",
+                "margin": "md",
+                "wrap": true
+            }
+        ]
+    },
+    "footer": {
+        "type": "box",
+        "layout": "vertical",
+        "contents": [
+            {
+                "type": "button",
+                "action": {
+                    "type": "postback",
+                    "label": "查看詳情",
+                    "data": "action=show_house_detail&house_id={{HOUSE_ID}}"
+                },
+                "style": "primary",
+                "color": "{{BUTTON_COLOR}}",
+                "height": "sm"
+            }
+        ]
+    }
+}

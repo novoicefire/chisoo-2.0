@@ -27,6 +27,7 @@ class User(Base):
     
     user_id: Mapped[str] = mapped_column(String(50), primary_key=True)
     display_name: Mapped[str] = mapped_column(String(100), nullable=True)
+    picture_url: Mapped[str] = mapped_column(String(255), nullable=True)
     persona_type: Mapped[str] = mapped_column(String(20), nullable=True)
     is_blocked: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

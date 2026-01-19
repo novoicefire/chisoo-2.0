@@ -50,7 +50,12 @@ class MatchingService:
     
     def calculate_budget_score(self, user_budget: Optional[int], persona: Persona) -> float:
         """
-        計算預算契合度 (使用高斯衰減函數)
+        計算預算契合度 (改良版本)
+        
+        邏輯：
+        - 預算在 persona 的理想範圍內 → 100 分
+        - 預算低於 persona 範圍 → 扣分 (這個人可能負擔不起)
+        - 預算高於 persona 範圍 → 也扣分 (這個人可能想要更好的)
         
         Args:
             user_budget: 使用者預算上限
@@ -60,21 +65,26 @@ class MatchingService:
             float: 0-100 分
         """
         if user_budget is None:
-            return 0
+            return 50  # 沒有提供預算給中等分數
         
         rent_min, rent_max = persona.get_rent_range()
+        
+        # 預算無上限(99999)的情況 - 傾向推薦高端選項
+        if user_budget >= 99999:
+            # 越高端的 persona (rent_max 越高) 分數越高
+            return min(100, rent_max / 100)  # 例如 rent_max=8000 → 80分
         
         if rent_min <= user_budget <= rent_max:
             # 完美落在區間內
             return 100
         elif user_budget < rent_min:
-            # 預算不足 - 指數衰減
-            # 每少 1000 元，分數下降約 13.5%
+            # 預算不足 - 這個 persona 可能太貴
             diff = rent_min - user_budget
-            return 100 * math.exp(-0.002 * diff)
+            return max(0, 100 - diff * 0.05)  # 每少 1000 元扣 50 分
         else:
-            # 預算充裕 - 輕微扣分
-            return 90
+            # 預算充裕 - 這個 persona 可能太便宜給使用者
+            diff = user_budget - rent_max
+            return max(20, 100 - diff * 0.02)  # 每多 1000 元扣 20 分，最低 20 分
     
     def calculate_location_score(self, user_location: Optional[str], persona: Persona) -> float:
         """
@@ -103,41 +113,62 @@ class MatchingService:
         else:
             return 0
     
-    def calculate_features_score(self, user_features: dict, persona: Persona) -> float:
+    def calculate_features_score(self, user_data: dict, persona: Persona) -> float:
         """
-        計算設施需求匹配度 (Jaccard 相似度變體)
+        計算設施需求匹配度 (使用快取的批次 AI 結果)
         
         Args:
-            user_features: 使用者需求的設施 {feature_name: True/False}
+            user_data: 使用者收集的資料 (包含 required_features 陣列)
             persona: 人物誌實例
             
         Returns:
             float: 0-100 分
         """
-        # 取得使用者想要的設施
-        wanted_features = [k for k, v in user_features.items() if v is True]
+        wanted_features = user_data.get("required_features", [])
         
         if not wanted_features:
             return 50  # 沒有特別需求給一半分
         
+        # 檢查是否有快取的批次匹配結果
+        if hasattr(self, '_feature_match_cache') and persona.persona_id in self._feature_match_cache:
+            match_result = self._feature_match_cache[persona.persona_id]
+            return match_result["match_rate"] * 100
+        
+        # Fallback: 使用簡單匹配
+        from app.services.ollama_service import OllamaService
+        ollama = OllamaService()
         required = persona.get_required_features()
         bonus = persona.get_bonus_features()
+        match_result = ollama.match_features_semantically(wanted_features, required + bonus)
         
-        score_sum = 0
-        for feature in wanted_features:
-            if feature in required:
-                score_sum += 30  # 必備設施 +30
-            elif feature in bonus:
-                score_sum += 15  # 常見設施 +15
-            else:
-                score_sum -= 10  # 通常沒有 -10
+        return max(0, min(100, match_result["match_rate"] * 100))
+    
+    def batch_prepare_features_match(self, user_data: dict, personas: list[Persona]) -> None:
+        """
+        批次進行所有 Persona 的設施匹配 (預先計算並快取結果)
         
-        # 正規化到 0-100
-        max_possible = len(wanted_features) * 30
-        normalized = (score_sum / max_possible) * 100 if max_possible > 0 else 0
+        Args:
+            user_data: 使用者收集的資料
+            personas: 所有人物誌列表
+        """
+        wanted_features = user_data.get("required_features", [])
         
-        # 限制在 0-100 範圍
-        return max(0, min(100, normalized))
+        if not wanted_features:
+            self._feature_match_cache = {}
+            return
+        
+        # 收集所有 Persona 的設施
+        all_personas_features = {}
+        for persona in personas:
+            required = persona.get_required_features()
+            bonus = persona.get_bonus_features()
+            all_personas_features[persona.persona_id] = required + bonus
+        
+        # 一次性 AI 批次匹配
+        from app.services.ollama_service import OllamaService
+        ollama = OllamaService()
+        
+        self._feature_match_cache = ollama.batch_match_features(wanted_features, all_personas_features)
     
     def calculate_landlord_score(self, user_management_pref: Optional[str], persona: Persona) -> float:
         """
@@ -234,7 +265,7 @@ class MatchingService:
             user_data.get("location_pref"), persona
         )
         s_features = self.calculate_features_score(
-            {k: v for k, v in user_data.items() if isinstance(v, bool)}, persona
+            user_data, persona
         )
         s_landlord = self.calculate_landlord_score(
             user_data.get("management_pref"), persona
@@ -270,6 +301,11 @@ class MatchingService:
         """
         personas = self.load_active_personas()
         
+        print(f"🎯 開始匹配，使用者資料: {user_data}")
+        
+        # 批次預先計算設施匹配 (單次 AI 呼叫)
+        self.batch_prepare_features_match(user_data, personas)
+        
         results = []
         for persona in personas:
             score = self.calculate_persona_score(user_data, persona, raw_text)
@@ -277,6 +313,7 @@ class MatchingService:
                 "persona": persona,
                 "score": round(score, 2)
             })
+            print(f"   📊 {persona.name}: {round(score, 2)} 分")
         
         # 排序
         results.sort(key=lambda x: x["score"], reverse=True)
@@ -284,6 +321,8 @@ class MatchingService:
         # 加入排名
         for i, result in enumerate(results):
             result["rank"] = i + 1
+        
+        print(f"🏆 最佳匹配: {results[0]['persona'].name} ({results[0]['score']} 分)")
         
         return results
     

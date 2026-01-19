@@ -1,85 +1,37 @@
 # ============================================================
 # handlers/liff.py - LIFF 頁面路由藍圖
 # 專案：Chi Soo 租屋小幫手
-# 說明：提供 LIFF 網頁應用的 HTML 頁面路由
+# 說明：將 LIFF 請求代理到 Next.js 前端應用
 # ============================================================
 
-from flask import Blueprint, render_template, send_from_directory
-import os
+from flask import Blueprint, redirect
+from app.config import config
 
-liff_bp = Blueprint(
-    "liff", 
-    __name__,
-    static_folder="../liff/static",
-    template_folder="../liff/templates"
-)
+liff_bp = Blueprint("liff", __name__)
+
+# Next.js 部署 URL (Vercel)
+NEXT_APP_URL = "https://liff-app-beige.vercel.app"
 
 
 @liff_bp.route("/detail/<int:house_id>")
 def house_detail(house_id: int):
     """
-    房源詳情頁
-    
-    此路由將在 Phase 7 實作，目前回傳佔位頁面
-    實際 LIFF 頁面將使用 Next.js 開發
+    房源詳情頁 - 重定向到 Next.js
     """
-    # TODO: Phase 7 - 整合 Next.js LIFF 應用
-    return f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>房源詳情 - Chi Soo</title>
-    </head>
-    <body>
-        <h1>房源詳情頁</h1>
-        <p>House ID: {house_id}</p>
-        <p>此頁面將在 Phase 7 實作 (Next.js)</p>
-    </body>
-    </html>
-    """
+    return redirect(f"{NEXT_APP_URL}/detail/{house_id}")
 
 
 @liff_bp.route("/review")
 def review_portal():
     """
-    評價系統首頁
+    評價系統首頁 - 重定向到 Next.js
     """
-    # TODO: Phase 7 - 整合 Next.js LIFF 應用
-    return """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>評價系統 - Chi Soo</title>
-    </head>
-    <body>
-        <h1>評價系統</h1>
-        <p>此頁面將在 Phase 7 實作 (Next.js)</p>
-    </body>
-    </html>
-    """
+    return redirect(f"{NEXT_APP_URL}/review")
 
 
 @liff_bp.route("/map")
 def map_search():
     """
-    地圖式搜尋頁
+    地圖式搜尋頁 - 重定向到 Next.js
     """
-    # TODO: Phase 7 - 整合 Next.js LIFF 應用
-    return """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>地圖搜尋 - Chi Soo</title>
-    </head>
-    <body>
-        <h1>地圖式搜尋</h1>
-        <p>此頁面將在 Phase 7 實作 (Next.js)</p>
-    </body>
-    </html>
-    """
+    return redirect(f"{NEXT_APP_URL}/map")
