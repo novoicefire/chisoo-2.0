@@ -257,6 +257,18 @@ def handle_postback(event: PostbackEvent):
             persona_id = params.get("persona", [""])[0]
             offset = int(params.get("offset", ["0"])[0])
             handle_show_more_houses(line_bot_api, reply_token, user_id, persona_id, offset)
+        elif action == "coming_soon":
+            # 功能建置中提示
+            feature = params.get("feature", [""])[0]
+            feature_names = {
+                "review": "評價系統",
+                "map": "地圖式搜尋"
+            }
+            feature_name = feature_names.get(feature, "此功能")
+            reply_text(line_bot_api, reply_token, 
+                f"🚧 {feature_name}正在重新設計中！\n\n"
+                "我們正在打造更好的體驗，敬請期待 🦔✨"
+            )
         else:
             reply_text(line_bot_api, reply_token, f"收到指令：{action}")
 

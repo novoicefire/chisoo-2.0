@@ -18,6 +18,7 @@ def register_handlers(app: Flask) -> None:
     from app.handlers.api import api_bp
     app.register_blueprint(api_bp, url_prefix="/api")
     
-    # 註冊 LIFF 頁面藍圖
-    from app.handlers.liff import liff_bp
-    app.register_blueprint(liff_bp, url_prefix="/liff")
+    # [停用] LIFF 頁面藍圖 - 功能重新設計中
+    # from app.handlers.liff import liff_bp
+    # app.register_blueprint(liff_bp, url_prefix="/liff")
+

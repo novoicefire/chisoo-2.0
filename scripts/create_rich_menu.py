@@ -22,11 +22,11 @@ HEADERS = {
     "Content-Type": "application/json"
 }
 
-# Rich Menu 配置 (2500x1686 px, 6 格)
+# Rich Menu 配置 (1200x810 px, 6 格)
 RICH_MENU_CONFIG = {
     "size": {
-        "width": 2500,
-        "height": 1686
+        "width": 1200,
+        "height": 810
     },
     "selected": True,
     "name": "Chi Soo Main Menu",
@@ -34,33 +34,33 @@ RICH_MENU_CONFIG = {
     "areas": [
         # 左上：幫我找窩
         {
-            "bounds": {"x": 0, "y": 0, "width": 833, "height": 843},
+            "bounds": {"x": 0, "y": 0, "width": 400, "height": 405},
             "action": {"type": "postback", "data": "action=start_test"}
         },
         # 中上：評價排行榜
         {
-            "bounds": {"x": 833, "y": 0, "width": 834, "height": 843},
+            "bounds": {"x": 400, "y": 0, "width": 400, "height": 405},
             "action": {"type": "postback", "data": "action=show_ranking"}
         },
         # 右上：租屋小Tips
         {
-            "bounds": {"x": 1667, "y": 0, "width": 833, "height": 843},
+            "bounds": {"x": 800, "y": 0, "width": 400, "height": 405},
             "action": {"type": "postback", "data": "action=show_tips"}
         },
         # 左下：我的收藏
         {
-            "bounds": {"x": 0, "y": 843, "width": 833, "height": 843},
+            "bounds": {"x": 0, "y": 405, "width": 400, "height": 405},
             "action": {"type": "postback", "data": "action=show_fav"}
         },
-        # 中下：評價系統
+        # 中下：評價系統 (暫時停用 - 重新設計中)
         {
-            "bounds": {"x": 833, "y": 843, "width": 834, "height": 843},
-            "action": {"type": "uri", "uri": f"{config.BASE_URL}/liff/review"}
+            "bounds": {"x": 400, "y": 405, "width": 400, "height": 405},
+            "action": {"type": "postback", "data": "action=coming_soon&feature=review"}
         },
-        # 右下：地圖式搜尋
+        # 右下：地圖式搜尋 (暫時停用 - 重新設計中)
         {
-            "bounds": {"x": 1667, "y": 843, "width": 833, "height": 843},
-            "action": {"type": "uri", "uri": f"{config.BASE_URL}/liff/map"}
+            "bounds": {"x": 800, "y": 405, "width": 400, "height": 405},
+            "action": {"type": "postback", "data": "action=coming_soon&feature=map"}
         }
     ]
 }
