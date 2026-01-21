@@ -36,8 +36,12 @@ export const UserMenu: React.FC<UserMenuProps> = ({
             >
                 {/* 使用者資訊卡 */}
                 <div className="bg-white rounded-[20px] p-4 flex flex-col items-center shadow-sm mb-2">
-                    <div className="w-20 h-20 rounded-full bg-land flex items-center justify-center text-text text-3xl font-bold mb-3 border-4 border-white shadow-inner">
-                        {user ? user.name.charAt(0) : 'L'}
+                    <div className="w-20 h-20 rounded-full bg-land flex items-center justify-center text-text text-3xl font-bold mb-3 border-4 border-white shadow-inner overflow-hidden">
+                        {user?.pictureUrl ? (
+                            <img src={user.pictureUrl} alt={user.name} className="w-full h-full object-cover" />
+                        ) : (
+                            user ? user.name.charAt(0) : 'L'
+                        )}
                     </div>
                     <h3 className="text-lg font-bold text-text">{user ? user.name : 'LINE 用戶'}</h3>
                     <p className="text-sm text-stroke mb-4">{user ? user.dept : '未驗證學生身份'}</p>
