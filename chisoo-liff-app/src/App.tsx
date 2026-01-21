@@ -15,7 +15,7 @@ import {
 } from './components';
 import { COFFEE_SHOPS, OTHER_LOCATIONS } from './data';
 import { fetchHouses, checkApiHealth } from './services/apiService';
-import { initLiff, liffLogout, type LiffState } from './services/liffService';
+import { initLiff, liffLogout } from './services/liffService';
 import { useLocalStorage } from './hooks';
 import type {
   Property,
@@ -51,7 +51,7 @@ function App() {
   const [houses, setHouses] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [apiAvailable, setApiAvailable] = useState(false);
-  const [liffState, setLiffState] = useState<LiffState | null>(null);
+
 
   // 從 API 載入房源
   useEffect(() => {
@@ -81,7 +81,7 @@ function App() {
   // 初始化 LIFF
   useEffect(() => {
     initLiff().then((state) => {
-      setLiffState(state);
+
       console.info('[LIFF] Initialized:', state.isLoggedIn ? 'logged in' : 'not logged in', state.isInClient ? '(in LINE)' : '(browser)');
       // 如果已登入且有 Profile，更新使用者資料
       if (state.isLoggedIn && state.profile) {
