@@ -28,6 +28,8 @@ def create_app() -> Flask:
         "https://liff-app-beige.vercel.app",
         "https://liff.line.me",
         "http://localhost:3000",  # 開發環境
+        "http://localhost:5173",  # Vite Dev
+        "http://localhost:5174",  # Vite Dev (Alternative)
     ])
     
     # 驗證必要設定

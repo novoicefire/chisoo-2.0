@@ -20,6 +20,8 @@ CORS(app, origins=[
     "https://liff-app-beige.vercel.app",
     "https://liff.line.me",
     "http://localhost:3000",
+    "http://localhost:5173",  # Vite Dev
+    "http://localhost:5174",  # Vite Dev
 ])
 
 # 註冊 API 和 LIFF Blueprint

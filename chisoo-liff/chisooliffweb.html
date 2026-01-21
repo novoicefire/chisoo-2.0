@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Chi．Soo 暨宿</title>
+
+    <!-- 核心函式庫 -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['-apple-system', 'BlinkMacSystemFont', 'Roboto', 'sans-serif'] },
+                    spacing: { 'safe-top': 'env(safe-area-inset-top)', 'safe-bottom': 'env(safe-area-inset-bottom)' }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            overscroll-behavior: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        @keyframes flow {
+            to {
+                stroke-dashoffset: -20;
+            }
+        }
+
+        .animate-flow {
+            stroke-dasharray: 8 4;
+            animation: flow 1s linear infinite;
+        }
+
+        /* 標記跳動動畫 */
+        @keyframes bounce-marker {
+            0% {
+                transform: translate(-50%, -100%) scale(0);
+                opacity: 0;
+            }
+
+            50% {
+                transform: translate(-50%, -120%) scale(1.2);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translate(-50%, -100%) scale(1);
+                opacity: 1;
+            }
+        }
+
+        .marker-enter {
+            animation: bounce-marker 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+    </style>
+</head>
+
+<body class="bg-[#faeee1] h-[100dvh] w-full overflow-hidden">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        const { motion, useAnimation, useDragControls, AnimatePresence } = window.Motion;
+
+        // --- 1. Icons (Lucide-based) ---
+        // Icon name mapping: 將舊名稱對應到 Lucide 官方名稱
+        const ICON_MAP = {
+            menu: 'menu',
+            user: 'user',
+            star: 'star',
+            nav: 'send',
+            back: 'arrow-left',
+            phone: 'phone',
+            share: 'share-2',
+            bookmark: 'bookmark',
+            mapPin: 'map-pin',
+            clock: 'clock',
+            scooter: 'bike',
+            bus: 'bus',
+            walk: 'footprints',
+            close: 'x',
+            send: 'send',
+            check: 'check',
+            shield: 'shield',
+            camera: 'camera',
+            upload: 'upload',
+            lock: 'lock',
+            time: 'clock',
+            logout: 'log-out',
+            coffee: 'coffee',
+            info: 'info',
+            alert: 'alert-circle',
+            robot: 'bot',
+            wifi: 'wifi',
+            heart: 'heart'
+        };
+
+        // Lucide Icon Component
+        const Icon = ({ name, size = 24, fill = 'none', className = '', strokeWidth = 2, color }) => {
+            const iconRef = useRef(null);
+            
+            // 防護：如果 name 是 undefined 或空值，返回空 span
+            if (!name) {
+                console.warn('Icon component: name prop is required');
+                return <span className={`inline-flex items-center justify-center ${className}`} style={{ width: size, height: size }} />;
+            }
+            
+            const lucideName = ICON_MAP[name] || name; // 支援傳入舊名稱或直接使用 Lucide 名稱
+
+            useEffect(() => {
+                if (iconRef.current && window.lucide && window.lucide.icons && lucideName) {
+                    // 將 kebab-case 轉換為 PascalCase (Lucide icons 物件的 key 格式)
+                    const pascalName = lucideName.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('');
+                    const iconData = window.lucide.icons[pascalName];
+
+                    if (iconData) {
+                        // 清空並創建新 Icon
+                        iconRef.current.innerHTML = '';
+                        const svgElement = window.lucide.createElement(iconData);
+                        svgElement.setAttribute('width', size);
+                        svgElement.setAttribute('height', size);
+                        svgElement.setAttribute('stroke-width', strokeWidth);
+                        if (fill !== 'none') svgElement.setAttribute('fill', fill);
+                        if (color) svgElement.setAttribute('stroke', color);
+                        iconRef.current.appendChild(svgElement);
+                    } else {
+                        console.warn(`Lucide icon "${lucideName}" (${pascalName}) not found.`);
+                    }
+                }
+            }, [lucideName, size, fill, strokeWidth, color]);
+
+            return (
+                <span
+                    ref={iconRef}
+                    className={`inline-flex items-center justify-center ${className}`}
+                    style={{ width: size, height: size }}
+                />
+            );
+        };
+
+        const COLORS = { land: '#faeee1', text: '#4e3c2e', stroke: '#b9b0a6', road: '#ffffff', water: '#e8dfd6', star: '#e69a4d' };
+
+        // --- 2. Data Sets ---
+        const PROPERTIES = [
+            { id: 1, type: 'housing', title: "靜巷・老宅寓所", price: "NT$ 12,800", rating: 4.9, ratingCount: 86, address: "埔里鎮青田街 12 巷", desc: "位於埔里市區靜謐巷弄中。適合喜歡閱讀與獨處的暨大生。", tags: ["老宅", "機車好停"], images: ["https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=600&q=80", "https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=600&q=80"], commute: { scooter: { time: "15", dist: "6.2" }, bus: { stopName: "崎下站", walkMin: "5", busNo: "1 號公車", busTime: "20", dest: "學人會館" } }, reviews: [{ name: "Emily C.", time: "2天前", rating: 5, text: "太喜歡這裡的氛圍了！" }], x: "50%", y: "40%" },
+            { id: 2, type: 'housing', title: "日光・莫蘭迪", price: "NT$ 9,500", rating: 4.7, ratingCount: 42, address: "埔里鎮中山路三段", desc: "全新裝潢，全聯旁邊。", tags: ["採光佳", "生活機能"], images: ["https://images.unsplash.com/photo-1502005229762-cf1afd38088d?w=600&q=80"], commute: { scooter: { time: "10", dist: "4.5" }, bus: { stopName: "埔里總站", walkMin: "3", busNo: "台灣好行", busTime: "15", dest: "圖書館前" } }, reviews: [], x: "20%", y: "30%" },
+            { id: 3, type: 'housing', title: "城南・讀書室", price: "NT$ 8,200", rating: 4.8, ratingCount: 120, address: "埔里鎮南安路", desc: "河堤旁視野開闊。", tags: ["河堤", "書香"], images: ["https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=600&q=80"], commute: { scooter: { time: "18", dist: "7.0" }, bus: { stopName: "地母廟", walkMin: "10", busNo: "南投客運", busTime: "25", dest: "學人會館" } }, reviews: [], x: "80%", y: "55%" }
+        ];
+
+        const COFFEE_SHOPS = [
+            { id: 'c1', type: 'place', title: "R-Cafe 讀書空間", price: "低消一杯飲品", rating: 4.8, ratingCount: 215, address: "埔里鎮北平街", desc: "暨大生公認最適合讀書的咖啡廳，插座充足，老闆不趕人。", tags: ["插座多", "極安靜"], images: ["https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=600&q=80"], commute: { scooter: { time: "8", dist: "3.2" }, bus: { stopName: "埔里總站", walkMin: "5", busNo: "1 號公車", busTime: "15", dest: "北平街口" } }, reviews: [], x: "30%", y: "45%" },
+            { id: 'c2', type: 'place', title: "山城漫步咖啡", price: "NT$ 120起", rating: 4.6, ratingCount: 120, address: "埔里鎮東興二街", desc: "戶外座位區有很棒的植物，適合放鬆心情。二樓有會議室可租借。", tags: ["氣氛佳", "部分插座"], images: ["https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&q=80"], commute: { scooter: { time: "12", dist: "5.0" }, bus: { stopName: "崎下", walkMin: "8", busNo: "台灣好行", busTime: "20", dest: "東興二街口" } }, reviews: [], x: "60%", y: "25%" },
+            { id: 'c3', type: 'place', title: "深夜圖書館", price: "會員制", rating: 5.0, ratingCount: 50, address: "埔里鎮信義路", desc: "專為夜貓子設計，開到凌晨 2 點。提供高速 Wifi 與免費列印服務。", tags: ["開到2AM", "Wifi快"], images: ["https://images.unsplash.com/photo-1521017432531-fbd92d768814?w=600&q=80"], commute: { scooter: { time: "10", dist: "4.0" }, bus: { stopName: "埔里西站", walkMin: "2", busNo: "校車", busTime: "20", dest: "信義路口" } }, reviews: [], x: "75%", y: "65%" }
+        ];
+
+        const OTHER_LOCATIONS = [
+            {
+                id: 'event1', type: 'place', title: "吉他社成發：夏日晚風", price: "免費入場", rating: 5.0, ratingCount: 320, address: "暨大 學生活動中心",
+                desc: "暨大吉他社年度盛事！集結校內最強樂手，帶來 3 小時不間斷的聽覺饗宴。現場提供精緻茶點，前 50 名入場者贈送限量貼紙。", tags: ["音樂", "社團", "免費"],
+                images: ["https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=800&q=80"], commute: { scooter: { time: "0", dist: "0.0" }, bus: { stopName: "學人會館", walkMin: "3", busNo: "校車", busTime: "5", dest: "學活" } }, reviews: [{ name: "小明", time: "1小時前", rating: 5, text: "期待很久了！" }], x: "50%", y: "50%"
+            },
+            {
+                id: 'shop1', type: 'place', title: "晨間廚房 (埔里店)", price: "$50 - $150", rating: 4.5, ratingCount: 88, address: "埔里鎮學府路",
+                desc: "暨大早八救星！推薦必點：招牌豬排蛋吐司、薯餅蛋塔。出示本 APP 畫面，單筆消費滿 100 元折 5 元。", tags: ["早餐", "優惠", "早八"],
+                images: ["https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&w=800&q=80"], commute: { scooter: { time: "12", dist: "5.0" }, bus: { stopName: "崎下", walkMin: "2", busNo: "1號公車", busTime: "15", dest: "學府路口" } }, reviews: [{ name: "好吃鬼", time: "昨天", rating: 4, text: "薯餅蛋塔真的讚。" }], x: "40%", y: "70%"
+            }
+        ];
+
+        const SPECIALS = [
+            { id: 's1', title: "期末考週・咖啡買一送一", date: "限時 6/20 - 6/25", desc: "憑暨大學生證，全品項手沖咖啡買一送一，陪你戰鬥到天亮！", image: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=600&q=80", locId: 'c1' },
+            { id: 's2', title: "吉他社成發：夏日晚風", date: "6/28 19:00 @ 學活", desc: "免費入場！前 50 名入場贈送精美社團貼紙。", image: "https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=800&q=80", locId: 'event1' },
+            { id: 's3', title: "早八救星！三明治 9 折", date: "每日 07:00 - 09:00", desc: "只要出示此畫面，豬排蛋吐司現折 5 元。", image: "https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&w=800&q=80", locId: 'shop1' }
+        ];
+
+        const GUIDE_CARDS = [
+            { id: 'g1', title: "那些地圖沒告訴你的事", desc: "信義路套房冬天山風大，記得加裝厚窗簾...", icon: "heart", tag: "#學長姐真心話" },
+            { id: 'g2', title: "三分鐘看房防雷清單", desc: "檢查牆角發霉與電費計價，別讓合約變惡夢", icon: "bookmark", tag: "#新手必看" },
+            { id: 'g3', title: "埔里今晚的節奏", desc: "週三夜市開張！必吃地瓜球。明晨校園可能有雲海", icon: "clock", tag: "#山城生活" },
+            { id: 'g4', title: "憑學生證，生活甜一點", desc: "某某早午餐內用紅茶續杯，好home米會員送明信片", icon: "star", tag: "#特約優惠" }
+        ];
+
+        // --- 3. Components ---
+
+        // About Content Component
+        const AboutContent = ({ onClose }) => (
+            <div className="h-full bg-[#faeee1] relative overflow-y-auto">
+                <button onClick={onClose} className="absolute top-4 left-4 z-20 w-10 h-10 rounded-full bg-white/90 backdrop-blur shadow-md flex items-center justify-center text-[#4e3c2e]"><Icon name="back" size={20} /></button>
+                <div className="pt-20 px-6 pb-12 flex flex-col items-center text-center">
+                    <div className="w-24 h-24 bg-[#4e3c2e] rounded-[28px] flex items-center justify-center text-[#faeee1] shadow-xl mb-6 transform -rotate-3 overflow-hidden">
+                        <img src="logo.jpg" className="w-full h-full object-cover" alt="Chi.Soo Logo" />
+                    </div>
+                    <h1 className="text-3xl font-bold text-[#4e3c2e] mb-2 tracking-tight">Chi．Soo 暨宿</h1>
+                    <p className="text-sm font-bold text-[#b9b0a6] uppercase tracking-[0.2em] mb-8">NCNU Living Guide</p>
+
+                    <div className="space-y-8 w-full max-w-sm">
+                        <div className="bg-white/60 p-6 rounded-2xl border border-white/50 shadow-sm">
+                            <h3 className="font-bold text-[#4e3c2e] mb-2 flex items-center justify-center gap-2"><Icon name="heart" size={18} /> 關於好home米</h3>
+                            <p className="text-sm text-[#4e3c2e]/80 leading-relaxed text-justify">
+                                「Chi．Soo」取自暨南(Chi Nan) 與住宿 (Soo) 諧音。我們是「好home米團隊」，由五位暨大國企系 112 級學生組成。團隊技術核心來自「暨大生超級助理」開發者，我們結合商業思維與技術實力，致力於透過這份溫柔的地圖，讓山城租屋生活更加從容。
+                            </p>
+                        </div>
+
+                        <div className="bg-white/60 p-6 rounded-2xl border border-white/50 shadow-sm">
+                            <h3 className="font-bold text-[#4e3c2e] mb-2 flex items-center justify-center gap-2"><Icon name="info" size={18} /> 版本資訊</h3>
+                            <div className="text-sm text-[#4e3c2e]/80 space-y-1">
+                                <p>目前版本：v1.2.0 (Beta)</p>
+                                <p>最後更新：2026.01.22</p>
+                                <p>開發團隊：好home米團隊 (NCNU IBS)</p>
+                            </div>
+                        </div>
+
+                        <div className="pt-4">
+                            <button className="text-xs text-[#b9b0a6] hover:text-[#4e3c2e] transition-colors border-b border-transparent hover:border-[#4e3c2e]">隱私權政策</button>
+                            <span className="mx-2 text-[#b9b0a6]">•</span>
+                            <button className="text-xs text-[#b9b0a6] hover:text-[#4e3c2e] transition-colors border-b border-transparent hover:border-[#4e3c2e]">聯絡我們</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+
+        const SideMenu = ({ isOpen, onClose, setAppMode, setSheetState, setShowSpecials, setShowAbout }) => {
+            return (
+                <AnimatePresence>
+                    {isOpen && (
+                        <>
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-[#4e3c2e]/60 z-50 backdrop-blur-sm" onClick={onClose} />
+                            <motion.div initial={{ x: "-100%" }} animate={{ x: 0 }} exit={{ x: "-100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="fixed top-0 left-0 bottom-0 w-[80%] max-w-[300px] bg-[#faeee1] z-50 shadow-2xl flex flex-col">
+                                <div className="px-6 pb-6 pt-24 bg-white/50 border-b border-[#b9b0a6]/20"><div className="flex items-center gap-3 mb-1"><div className="w-10 h-10 bg-[#4e3c2e] rounded-full flex items-center justify-center text-[#faeee1]"><Icon name="mapPin" size={20} /></div><span className="font-bold text-xl text-[#4e3c2e]">Chi．Soo 暨宿</span></div><p className="text-xs text-[#b9b0a6] pl-1">埔里生活指南 x 暨大租屋</p></div>
+                                <div className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
+                                    <div><h4 className="px-3 text-xs font-bold text-[#b9b0a6] mb-2 uppercase tracking-wider">探索生活</h4><div className="space-y-1">
+                                        <button onClick={() => { setShowSpecials(true); setSheetState('half'); onClose(); }} className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/60 text-[#4e3c2e] transition-colors text-left"><Icon name="star" size={20} className="opacity-70" /> <span className="font-medium text-sm">本月精選特輯</span></button>
+                                        <button onClick={() => { setAppMode('coffee'); onClose(); }} className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/60 text-[#4e3c2e] transition-colors text-left"><Icon name="coffee" size={20} className="opacity-70" /> <span className="font-medium text-sm">讀書咖啡地圖</span></button>
+                                        <button onClick={() => { setAppMode('housing'); onClose(); }} className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/60 text-[#4e3c2e] transition-colors text-left"><Icon name="mapPin" size={20} className="opacity-70" /> <span className="font-medium text-sm">找房模式 (預設)</span></button>
+                                    </div></div>
+                                    <div><h4 className="px-3 text-xs font-bold text-[#b9b0a6] mb-2 uppercase tracking-wider">暨大學生工具</h4><div className="space-y-1"><a href="https://ncnu-super-assistant.vercel.app/" target="_blank" rel="noopener noreferrer" className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/60 text-[#4e3c2e] transition-colors text-left block"><Icon name="robot" size={20} className="opacity-70" /> <span className="font-medium text-sm">暨大生超級助理</span></a><a href="https://www.taiwanbus.tw/eBUSPage/Query/QueryResult.aspx?rno=0706B&rn=1624261592512&lan=C" target="_blank" rel="noopener noreferrer" className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/60 text-[#4e3c2e] transition-colors text-left block"><Icon name="bus" size={20} className="opacity-70" /> <span className="font-medium text-sm">校車/公車動態</span></a></div></div>
+                                    <div><h4 className="px-3 text-xs font-bold text-[#b9b0a6] mb-2 uppercase tracking-wider">平台資訊</h4><div className="space-y-1">
+                                        <button className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/60 text-[#4e3c2e] transition-colors text-left"><Icon name="user" size={20} className="opacity-70" /> <span className="font-medium text-sm">房東合作刊登</span></button>
+                                        <button className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/60 text-[#4e3c2e] transition-colors text-left"><Icon name="alert" size={20} className="opacity-70" /> <span className="font-medium text-sm">許願池 / 回報問題</span></button>
+                                        <button onClick={() => { setShowAbout(true); setSheetState('half'); onClose(); }} className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/60 text-[#4e3c2e] transition-colors text-left"><Icon name="info" size={20} className="opacity-70" /> <span className="font-medium text-sm">關於我們</span></button>
+                                    </div></div>
+                                </div>
+                                <div className="p-4 text-center border-t border-[#b9b0a6]/20"><p className="text-[10px] text-[#b9b0a6]">v1.2.0 • Made for NCNU</p></div>
+                            </motion.div>
+                        </>
+                    )}
+                </AnimatePresence>
+            );
+        };
+
+        const VerificationCenter = ({ onClose, status, setStatus, setUserData }) => {
+            const [formData, setFormData] = useState({ name: '', studentId: '', dept: '' });
+            const [frontImg, setFrontImg] = useState(null);
+            const [backImg, setBackImg] = useState(null);
+            const handleFileChange = (e, setter) => { if (e.target.files && e.target.files[0]) setter(URL.createObjectURL(e.target.files[0])); };
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (!formData.name.trim() || !formData.studentId.trim() || !formData.dept.trim()) {
+                    alert('請填寫完整資料');
+                    return;
+                }
+                if (!frontImg || !backImg) {
+                    alert('請上傳學生證正反面');
+                    return;
+                }
+                setUserData({ ...formData });
+                setStatus('pending');
+                setFormData({ name: '', studentId: '', dept: '' });
+                setFrontImg(null);
+                setBackImg(null);
+            };
+            return (
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-6"><motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#4e3c2e]/60 backdrop-blur-sm" onClick={onClose} /><motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }} className="bg-[#faeee1] w-full max-w-lg h-[90dvh] sm:h-auto sm:rounded-[32px] rounded-t-[32px] relative z-10 flex flex-col overflow-hidden shadow-2xl"><div className="px-6 py-5 border-b border-[#b9b0a6]/20 flex items-center justify-between bg-white/50 backdrop-blur-md"><h3 className="text-xl font-bold text-[#4e3c2e] flex items-center gap-2"><Icon name="shield" size={24} /> 身份驗證中心</h3><button onClick={onClose} className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-[#4e3c2e] hover:bg-[#4e3c2e] hover:text-[#faeee1] transition-colors"><Icon name="close" size={20} /></button></div><div className="flex-1 overflow-y-auto p-6 space-y-6">{status === 'verified' && (<div className="flex flex-col items-center justify-center py-10 text-center space-y-4"><div className="w-24 h-24 bg-[#e69a4d]/20 rounded-full flex items-center justify-center text-[#e69a4d]"><Icon name="check" size={48} strokeWidth={3} /></div><h2 className="text-2xl font-bold text-[#4e3c2e]">恭喜！身份已驗證</h2><p className="text-[#4e3c2e]/70">您現在可以盡情評論、評分與分享照片。</p><button onClick={onClose} className="px-8 py-3 bg-[#4e3c2e] text-[#faeee1] rounded-full font-bold shadow-lg">開始探索</button></div>)}{status === 'pending' && (<div className="flex flex-col items-center justify-center py-10 text-center space-y-4"><div className="w-24 h-24 bg-[#b9b0a6]/20 rounded-full flex items-center justify-center text-[#4e3c2e] animate-pulse"><Icon name="time" size={48} /></div><h2 className="text-2xl font-bold text-[#4e3c2e]">資料審核中</h2><p className="text-[#4e3c2e]/70 px-4">我們的團隊正在人工核對您的學生證資料。<br />通常需要 1-2 個工作天。</p><div className="mt-8 p-4 border border-dashed border-[#b9b0a6] rounded-xl bg-white/30"><p className="text-xs text-[#b9b0a6] mb-2">[測試模式] 模擬管理員操作</p><button onClick={() => setStatus('verified')} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-bold shadow-md">一鍵通過審核</button></div></div>)}{status === 'unverified' && (<form onSubmit={handleSubmit} className="space-y-6"><div className="bg-white p-4 rounded-2xl shadow-sm border border-[#b9b0a6]/10 space-y-4"><h4 className="font-bold text-[#4e3c2e] mb-2 border-l-4 border-[#e69a4d] pl-3">基本資料</h4><div className="grid grid-cols-2 gap-4"><div className="col-span-2"><label className="block text-xs font-bold text-[#4e3c2e]/70 mb-1 ml-1">真實姓名</label><input required type="text" className="w-full h-12 px-4 rounded-xl bg-gray-50 text-[#4e3c2e] border border-transparent focus:border-[#4e3c2e] outline-none" placeholder="王小明" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} /></div><div><label className="block text-xs font-bold text-[#4e3c2e]/70 mb-1 ml-1">學號</label><input required type="text" className="w-full h-12 px-4 rounded-xl bg-gray-50 text-[#4e3c2e] outline-none" placeholder="s112..." value={formData.studentId} onChange={e => setFormData({ ...formData, studentId: e.target.value })} /></div><div><label className="block text-xs font-bold text-[#4e3c2e]/70 mb-1 ml-1">系級</label><input required type="text" className="w-full h-12 px-4 rounded-xl bg-gray-50 text-[#4e3c2e] outline-none" placeholder="資管三甲" value={formData.dept} onChange={e => setFormData({ ...formData, dept: e.target.value })} /></div></div></div><div className="bg-white p-4 rounded-2xl shadow-sm border border-[#b9b0a6]/10 space-y-4"><h4 className="font-bold text-[#4e3c2e] mb-2 border-l-4 border-[#e69a4d] pl-3">學生證上傳</h4><p className="text-xs text-[#4e3c2e]/60 mb-2">請上傳清晰的學生證正反面照片以供查驗。</p><div className="grid grid-cols-2 gap-4"><label className="aspect-[4/3] rounded-xl border-2 border-dashed border-[#b9b0a6] flex flex-col items-center justify-center cursor-pointer hover:bg-[#faeee1]/50 transition-colors relative overflow-hidden bg-gray-50">{frontImg ? (<img src={frontImg} className="w-full h-full object-cover" />) : (<><Icon name="camera" size={24} className="text-[#b9b0a6] mb-1" /><span className="text-xs font-bold text-[#b9b0a6]">正面 (有照片)</span></>)}<input type="file" hidden accept="image/*" onChange={(e) => handleFileChange(e, setFrontImg)} required /></label><label className="aspect-[4/3] rounded-xl border-2 border-dashed border-[#b9b0a6] flex flex-col items-center justify-center cursor-pointer hover:bg-[#faeee1]/50 transition-colors relative overflow-hidden bg-gray-50">{backImg ? (<img src={backImg} className="w-full h-full object-cover" />) : (<><Icon name="upload" size={24} className="text-[#b9b0a6] mb-1" /><span className="text-xs font-bold text-[#b9b0a6]">反面 (註冊章)</span></>)}<input type="file" hidden accept="image/*" onChange={(e) => handleFileChange(e, setBackImg)} required /></label></div></div><div className="pt-2 pb-safe-bottom"><button type="submit" className="w-full h-14 bg-[#4e3c2e] text-[#faeee1] rounded-2xl font-bold text-lg shadow-xl active:scale-95 transition-transform flex items-center justify-center gap-2">提交審核 <Icon name="check" size={20} /></button></div></form>)}</div></motion.div></div>
+            );
+        };
+
+        const RouteMap = ({ mode, isHousing }) => (
+            <div className="w-full h-40 bg-[#e8dfd6]/30 rounded-xl overflow-hidden relative border border-[#b9b0a6]/30 mt-4">
+                <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none"><path d="M-10 120 C 50 120, 100 80, 150 100 S 250 150, 350 120" stroke="white" strokeWidth="8" fill="none" opacity="0.8" /></svg>
+                {isHousing && (<><div className="absolute top-[-20px] right-[-20px] w-32 h-32 bg-[#4e3c2e]/5 rounded-full blur-xl"></div><div className="absolute top-2 right-2 text-[10px] font-bold text-[#4e3c2e]/40">NCNU Campus</div></>)}
+                <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                    {mode === 'scooter' ? (
+                        isHousing ? (
+                            <><path d="M 40 100 C 80 100, 120 40, 200 60 S 260 40, 280 40" stroke="#4e3c2e" strokeWidth="4" fill="none" strokeLinecap="round" className="drop-shadow-sm" /><path d="M 40 100 C 80 100, 120 40, 200 60 S 260 40, 280 40" stroke="#faeee1" strokeWidth="2" fill="none" className="animate-flow" /><g transform="translate(160, 45)"><rect x="-30" y="-10" width="60" height="20" rx="4" fill="white" fillOpacity="0.9" /><text x="0" y="4" textAnchor="middle" fontSize="10" fill="#4e3c2e" fontWeight="bold">經桃米巷</text></g><circle cx="280" cy="40" r="4" fill="#4e3c2e" /><text x="270" y="30" textAnchor="end" fontSize="10" fill="#4e3c2e" fontWeight="bold">機車入口</text></>
+                        ) : (
+                            <><path d="M 40 100 L 100 100 L 120 50 L 280 50" stroke="#4e3c2e" strokeWidth="4" fill="none" strokeLinecap="round" className="drop-shadow-sm" /><path d="M 40 100 L 100 100 L 120 50 L 280 50" stroke="#faeee1" strokeWidth="2" fill="none" className="animate-flow" /><g transform="translate(160, 30)"><rect x="-35" y="-10" width="70" height="20" rx="4" fill="white" fillOpacity="0.9" /><text x="0" y="4" textAnchor="middle" fontSize="10" fill="#4e3c2e" fontWeight="bold">經市區道路</text></g><circle cx="280" cy="50" r="4" fill="#4e3c2e" /><text x="270" y="40" textAnchor="end" fontSize="10" fill="#4e3c2e" fontWeight="bold">目的地</text></>
+                        )
+                    ) : (
+                        isHousing ? (
+                            <><path d="M 40 100 L 80 100" stroke="#b9b0a6" strokeWidth="3" strokeDasharray="4 2" fill="none" /><path d="M 80 100 Q 150 100 220 80 T 280 20" stroke="#4e3c2e" strokeWidth="4" fill="none" strokeLinecap="round" className="drop-shadow-sm" /><path d="M 80 100 Q 150 100 220 80 T 280 20" stroke="#faeee1" strokeWidth="2" fill="none" className="animate-flow" /><g transform="translate(180, 85)"><rect x="-30" y="-10" width="60" height="20" rx="4" fill="white" fillOpacity="0.9" /><text x="0" y="4" textAnchor="middle" fontSize="10" fill="#4e3c2e" fontWeight="bold">台14線</text></g><circle cx="280" cy="20" r="4" fill="#4e3c2e" /><text x="270" y="30" textAnchor="end" fontSize="10" fill="#4e3c2e" fontWeight="bold">學人會館</text></>
+                        ) : (
+                            <><path d="M 40 100 L 60 100" stroke="#b9b0a6" strokeWidth="3" strokeDasharray="4 2" fill="none" /><path d="M 60 100 Q 120 100 180 80 T 240 60" stroke="#4e3c2e" strokeWidth="4" fill="none" strokeLinecap="round" className="drop-shadow-sm" /><path d="M 60 100 Q 120 100 180 80 T 240 60" stroke="#faeee1" strokeWidth="2" fill="none" className="animate-flow" /><path d="M 240 60 L 280 60" stroke="#b9b0a6" strokeWidth="3" strokeDasharray="4 2" fill="none" /><g transform="translate(150, 70)"><rect x="-30" y="-10" width="60" height="20" rx="4" fill="white" fillOpacity="0.9" /><text x="0" y="4" textAnchor="middle" fontSize="10" fill="#4e3c2e" fontWeight="bold">公車行駛</text></g><circle cx="280" cy="60" r="4" fill="#4e3c2e" /><text x="270" y="50" textAnchor="end" fontSize="10" fill="#4e3c2e" fontWeight="bold">目的地</text></>
+                        )
+                    )}
+                    <circle cx="40" cy="100" r="6" fill="#4e3c2e" stroke="white" strokeWidth="2" />
+                    <text x="40" y="125" textAnchor="middle" fontSize="10" fill="#4e3c2e" fontWeight="bold">{isHousing ? "房源位置" : "我的位置"}</text>
+                </svg>
+            </div>
+        );
+
+        const CommuteInfo = ({ commute, title, isHousing }) => {
+            const [mode, setMode] = useState('scooter');
+            return (
+                <div className="px-5 py-6 border-b border-[#b9b0a6]/20">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-bold text-lg" style={{ color: COLORS.text }}>{isHousing ? "前往暨南大學" : `前往 ${title}`}</h3>
+                        <div className="flex bg-[#b9b0a6]/20 p-0.5 rounded-full relative overflow-hidden">
+                            <motion.div 
+                                className="absolute top-0 bottom-0 w-[calc(50%+2px)] bg-white rounded-full shadow-sm z-0" 
+                                animate={{ x: mode === 'scooter' ? 2 : 'calc(100% - 2px)' }} 
+                                transition={{ type: "spring", stiffness: 300, damping: 30 }} 
+                            />
+                            <button onClick={() => setMode('scooter')} className={`relative z-10 px-4 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-bold transition-colors ${mode === 'scooter' ? 'text-[#4e3c2e]' : 'text-[#4e3c2e]/60'}`}><Icon name="scooter" size={14} /> 騎車</button>
+                            <button onClick={() => setMode('bus')} className={`relative z-10 px-4 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-bold transition-colors ${mode === 'bus' ? 'text-[#4e3c2e]' : 'text-[#4e3c2e]/60'}`}><Icon name="bus" size={14} /> 公車</button>
+                        </div>
+                    </div>
+                    <div className="bg-white/60 rounded-2xl p-4 border border-[#fff]">
+                        {mode === 'scooter' ? (
+                            <motion.div key="scooter" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center justify-between">
+                                <div><div className="flex items-end gap-2 mb-1"><span className="text-3xl font-bold text-[#4e3c2e]">{commute.scooter.time}</span><span className="text-sm font-bold text-[#b9b0a6] mb-1.5">分鐘</span></div><p className="text-xs text-[#4e3c2e]/70">距離約 {commute.scooter.dist} 公里</p></div>
+                                <div className="w-12 h-12 bg-[#faeee1] rounded-full flex items-center justify-center text-[#4e3c2e]"><Icon name="scooter" size={24} strokeWidth={1.5} /></div>
+                            </motion.div>
+                        ) : (
+                            <motion.div key="bus" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
+                                <div className="absolute left-[19px] top-3 bottom-3 w-[2px] border-l-2 border-dashed border-[#b9b0a6]/50"></div>
+                                <div className="space-y-4">
+                                    <div className="flex items-start gap-4 relative z-10"><div className="w-10 h-10 rounded-full bg-white border border-[#b9b0a6] flex items-center justify-center shrink-0 text-[#4e3c2e]"><Icon name="walk" size={16} /></div><div className="pt-1"><p className="text-xs font-bold text-[#b9b0a6]">步行 {commute.bus.walkMin} 分鐘</p><p className="text-sm font-bold text-[#4e3c2e]">前往 {commute.bus.stopName}</p></div></div>
+                                    <div className="flex items-start gap-4 relative z-10"><div className="w-10 h-10 rounded-full bg-[#4e3c2e] flex items-center justify-center shrink-0 text-[#faeee1] shadow-md"><Icon name="bus" size={16} /></div><div className="pt-1"><div className="flex items-center gap-2"><p className="text-sm font-bold text-[#4e3c2e]">{commute.bus.busNo}</p><span className="text-[10px] bg-[#e69a4d]/20 text-[#e69a4d] px-1.5 py-0.5 rounded font-bold">約 {commute.bus.busTime} 分</span></div><p className="text-xs text-[#4e3c2e]/70">抵達 {commute.bus.dest}</p></div></div>
+                                </div>
+                            </motion.div>
+                        )}
+                    </div>
+                    <RouteMap mode={mode} isHousing={isHousing} />
+                </div>
+            );
+        };
+
+        const UserMenu = ({ user, onClose, onOpenVerification, onLogout, onOpenFavorites }) => (
+            <>
+                <div className="fixed inset-0 z-40" onClick={onClose}></div>
+                <motion.div initial={{ opacity: 0, scale: 0.9, y: -10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9 }} className="absolute top-16 right-4 z-50 w-[320px] bg-[#faeee1] rounded-[28px] shadow-[0_4px_20px_rgba(78,60,46,0.2)] p-4 flex flex-col border border-white/50">
+                    <div className="bg-white rounded-[20px] p-4 flex flex-col items-center shadow-sm mb-2"><div className="w-20 h-20 rounded-full bg-[#faeee1] flex items-center justify-center text-[#4e3c2e] text-3xl font-bold mb-3 border-4 border-white shadow-inner">{user ? user.name.charAt(0) : "L"}</div><h3 className="text-lg font-bold text-[#4e3c2e]">{user ? user.name : "LINE 用戶"}</h3><p className="text-sm text-[#b9b0a6] mb-4">{user ? user.dept : "未驗證學生身份"}</p>{!user ? (<button onClick={() => { onClose(); onOpenVerification(); }} className="w-full py-2.5 rounded-full border border-[#b9b0a6] text-[#4e3c2e] text-sm font-bold hover:bg-[#faeee1] transition-colors">驗證暨大學生身份</button>) : (<div className="flex items-center gap-2 px-3 py-1 rounded-full bg-[#e69a4d]/10 text-[#e69a4d] text-xs font-bold"><Icon name="check" size={12} /> 已驗證學生</div>)}</div>
+                    <div className="bg-white rounded-[20px] overflow-hidden shadow-sm"><button onClick={() => { onClose(); onOpenFavorites(); }} className="w-full px-4 py-3.5 flex items-center gap-4 text-sm text-[#4e3c2e] hover:bg-[#faeee1]/50 text-left"><Icon name="bookmark" size={20} className="opacity-60" /> 我的收藏</button><button onClick={() => { onLogout(); onClose(); }} className="w-full px-4 py-3.5 flex items-center gap-4 text-sm text-[#4e3c2e] hover:bg-[#faeee1]/50 text-left border-t border-gray-100"><Icon name="logout" size={20} className="opacity-60" /> 登出</button></div>
+                </motion.div>
+            </>
+        );
+
+        const FavoritesPage = ({ onClose, favorites, onRemove, onUpdateStatus, onSelect, onToast, initialTab }) => {
+            const [activeTab, setActiveTab] = useState(initialTab || 'homes');
+            const [statusFilter, setStatusFilter] = useState('all');
+
+            const housingFavorites = favorites.filter(f => f.type === 'housing');
+            const placeFavorites = favorites.filter(f => f.type === 'place' || f.type === 'event');
+
+            const isExpired = (item) => {
+                if (item.type !== 'event' && item.type !== 'place') return false;
+                if (!item.date && !item.endDate) return false;
+                const now = new Date();
+                if (item.endDate) {
+                    const end = new Date(item.endDate);
+                    return now > end;
+                }
+                return false;
+            };
+
+            const statusLabels = {
+                saved: '待預約',
+                visited: '已看完房',
+                contacting: '聯繫中'
+            };
+
+            const statusColors = {
+                saved: 'bg-[#b9b0a6]/20 text-[#b9b0a6]',
+                visited: 'bg-[#e69a4d]/20 text-[#e69a4d]',
+                contacting: 'bg-[#4e3c2e]/10 text-[#4e3c2e]'
+            };
+
+            const HousingCard = ({ item }) => (
+                <div 
+                    key={String(item.id)} 
+                    onClick={() => onSelect(item)}
+                    className={`bg-white rounded-2xl p-4 shadow-sm border border-[#b9b0a6]/20 cursor-pointer active:scale-[0.98] transition-transform ${isExpired(item) ? 'opacity-50 grayscale' : ''}`}
+                >
+                    <div className="flex gap-3 items-stretch relative">
+                        <img src={item.images[0]} className="w-24 h-24 rounded-xl object-cover shrink-0" alt="" />
+                        <div className="flex-1 min-w-0 flex flex-col justify-center">
+                            <h3 className="font-bold text-[#4e3c2e] truncate pr-2">{item.title}</h3>
+                            <p className="text-lg text-[#e69a4d] font-bold mt-0.5">{item.price}</p>
+                            <p className="text-xs text-[#b9b0a6] truncate mt-1">{item.address}</p>
+                            <div className="flex items-center gap-2 mt-1.5">
+                                <span className="flex items-center gap-1 text-xs text-[#4e3c2e]/70">
+                                    <Icon name="star" size={12} fill="#e69a4d" className="text-[#e69a4d]" />
+                                    {item.rating}
+                                </span>
+                                {item.tags && item.tags.slice(0, 2).map(t => (
+                                    <span key={t} className="text-[10px] bg-[#4e3c2e]/10 text-[#4e3c2e] px-1.5 py-0.5 rounded-full">{t}</span>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="flex flex-col justify-center items-end shrink-0">
+                            <select 
+                                value={item.status} 
+                                onChange={(e) => { e.stopPropagation(); onUpdateStatus(item.id, e.target.value); }}
+                                onClick={(e) => e.stopPropagation()}
+                                className={`px-3 py-1.5 rounded-full text-xs font-bold border-0 cursor-pointer min-w-[80px] text-center ${statusColors[item.status]}`}
+                            >
+                                <option value="saved">{statusLabels.saved}</option>
+                                <option value="contacting">{statusLabels.contacting}</option>
+                                <option value="visited">{statusLabels.visited}</option>
+                            </select>
+                        </div>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onRemove(item.id); onToast('已從收藏移除'); }} 
+                            className="absolute -top-2 -right-2 w-7 h-7 bg-[#b9b0a6]/40 rounded-full shadow-md flex items-center justify-center text-[#4e3c2e] hover:text-red-500 hover:bg-[#b9b0a6]/60 transition-colors"
+                        >
+                            <Icon name="x" size={14} />
+                        </button>
+                    </div>
+                </div>
+            );
+
+            const PlaceCard = ({ item }) => {
+                const typeLabels = {
+                    cafe: '讀書聖地',
+                    event: '社團活動',
+                    shop: '美食口袋'
+                };
+                const typeLabel = item.type === 'event' ? typeLabels.event : item.type === 'place' ? (item.title.includes('咖啡') ? typeLabels.cafe : typeLabels.shop) : typeLabels.cafe;
+                const getTypeIcon = () => {
+                    if (item.type === 'event') return 'music';
+                    if (item.type === 'place') return item.title.includes('咖啡') ? 'coffee' : ' Utensils';
+                    return 'coffee';
+                };
+
+                return (
+                    <div 
+                        key={String(item.id)} 
+                        onClick={() => onSelect(item)}
+                        className={`bg-gradient-to-br from-white to-[#faeee1]/50 rounded-2xl p-4 shadow-sm border border-[#e69a4d]/30 cursor-pointer active:scale-[0.98] transition-transform ${isExpired(item) ? 'opacity-50 grayscale' : ''}`}
+                    >
+                        <div className="flex gap-3 items-stretch relative">
+                            <div className="w-24 h-24 rounded-xl overflow-hidden relative shrink-0">
+                                <img src={item.images[0]} className="w-full h-full object-cover" alt="" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-[#4e3c2e]/60 to-transparent"></div>
+                                <div className="absolute bottom-2 left-2">
+                                    <Icon name={getTypeIcon()} size={16} className="text-white" />
+                                </div>
+                            </div>
+                            <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                <h3 className="font-bold text-[#4e3c2e] truncate pr-2">{item.title}</h3>
+                                <span className="inline-flex items-center gap-1 text-[10px] bg-[#e69a4d]/20 text-[#e69a4d] px-2 py-0.5 rounded-full mt-1 w-max">
+                                    <Icon name={getTypeIcon()} size={10} /> {typeLabel}
+                                </span>
+                                <p className="text-sm text-[#4e3c2e]/80 mt-1 line-clamp-2">{item.desc?.slice(0, 40)}...</p>
+                                {item.date && (
+                                    <p className={`text-[10px] font-bold mt-1.5 ${isExpired(item) ? 'text-[#b9b0a6]' : 'text-[#e69a4d]'}`}>
+                                        {isExpired(item) ? '已結束' : item.date}
+                                    </p>
+                                )}
+                                <div className="flex items-center gap-2 mt-1">
+                                    <span className="flex items-center gap-1 text-xs text-[#4e3c2e]/70">
+                                        <Icon name="star" size={12} fill="#e69a4d" className="text-[#e69a4d]" />
+                                        {item.rating}
+                                    </span>
+                                    {!item.date && item.price && (
+                                        <span className="text-xs text-[#4e3c2e]/70">{item.price}</span>
+                                    )}
+                                </div>
+                            </div>
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); onRemove(item.id); onToast('已從收藏移除'); }} 
+                                className="absolute -top-2 -right-2 w-7 h-7 bg-[#e69a4d]/30 rounded-full shadow-md flex items-center justify-center text-[#e69a4d] hover:text-red-500 hover:bg-[#e69a4d]/50 transition-colors"
+                            >
+                                <Icon name="x" size={14} />
+                            </button>
+                        </div>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="h-full bg-[#faeee1] relative overflow-y-auto">
+                    <button onClick={onClose} className="absolute top-4 left-4 z-20 w-10 h-10 rounded-full bg-white/90 backdrop-blur shadow-md flex items-center justify-center text-[#4e3c2e]"><Icon name="x" size={20} /></button>
+                    
+                    <div className="pt-16 px-5 pb-6">
+                        <h2 className="text-xl font-bold text-[#4e3c2e] text-center mb-4">我的收藏</h2>
+                        
+                        <div className="flex gap-2 mb-4 bg-white/50 p-1 rounded-2xl">
+                            <button
+                                onClick={() => setActiveTab('homes')}
+                                className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${activeTab === 'homes' ? 'bg-[#4e3c2e] text-[#faeee1] shadow-md' : 'text-[#4e3c2e]/60 hover:text-[#4e3c2e]'}`}
+                            >
+                                <Icon name="home" size={16} className="inline mr-1.5" />找房清單
+                                <span className="ml-1.5 text-xs opacity-70">({housingFavorites.length})</span>
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('life')}
+                                className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${activeTab === 'life' ? 'bg-[#e69a4d] text-white shadow-md' : 'text-[#4e3c2e]/60 hover:text-[#4e3c2e]'}`}
+                            >
+                                <Icon name="briefcase" size={16} className="inline mr-1.5" />生活口袋
+                                <span className="ml-1.5 text-xs opacity-70">({placeFavorites.length})</span>
+                            </button>
+                        </div>
+
+                        {activeTab === 'homes' ? (
+                            housingFavorites.length === 0 ? (
+                                <div className="text-center py-12 text-[#b9b0a6]">
+                                    <Icon name="home" size={48} className="mx-auto mb-3 opacity-50" />
+                                    <p className="text-sm">找房清單是空的</p>
+                                    <p className="text-xs mt-1">收藏房源來比較租金與坪數</p>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="flex gap-2 mb-3 overflow-x-auto no-scrollbar pb-1">
+                                        {['all', 'saved', 'contacting', 'visited'].map(f => (
+                                            <button
+                                                key={f}
+                                                onClick={() => setStatusFilter(f)}
+                                                className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
+                                                    statusFilter === f 
+                                                    ? 'bg-[#4e3c2e] text-[#faeee1]' 
+                                                    : 'bg-white text-[#4e3c2e] border border-[#b9b0a6]/30'
+                                                }`}
+                                            >
+                                                {f === 'all' ? '全部' : statusLabels[f]}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className="space-y-3">
+                                        {housingFavorites.filter(f => statusFilter === 'all' || f.status === statusFilter).map(item => <HousingCard key={String(item.id)} item={item} />)}
+                                    </div>
+                                </>
+                            )
+                        ) : (
+                            placeFavorites.length === 0 ? (
+                                <div className="text-center py-12 text-[#b9b0a6]">
+                                    <Icon name="coffee" size={48} className="mx-auto mb-3 opacity-50" />
+                                    <p className="text-sm">生活口袋是空的</p>
+                                    <p className="text-xs mt-1">收藏咖啡廳、活動來探索山城生活</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {placeFavorites.map(item => <PlaceCard key={String(item.id)} item={item} />)}
+                                </div>
+                            )
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const PropertyDetails = ({ property, onBack, status, openVerification, isFavorite, onToggleFavorite }) => {
+            if (!property) return null;
+            
+            const [reviewText, setReviewText] = useState("");
+            const isHousing = property.type === 'housing'; // 判斷是否為房源模式
+
+            const handleReviewSubmit = () => {
+                if (!reviewText.trim()) return;
+                console.log('提交評論:', reviewText);
+                setReviewText('');
+                alert('評論已提交！');
+            };
+
+            return (
+                <div className="flex flex-col min-h-full">
+                    <div className="relative w-full h-64 shrink-0 bg-gray-100"><div className="absolute top-4 left-4 z-20"><button onClick={onBack} className="w-10 h-10 rounded-full bg-white/90 backdrop-blur shadow-md flex items-center justify-center text-[#4e3c2e]"><Icon name="back" size={20} /></button></div><div className="flex overflow-x-auto snap-x no-scrollbar w-full h-full">{property.images.map((img, i) => (<div key={i} className="w-full shrink-0 snap-center h-full relative"><img src={img} className="w-full h-full object-cover sepia-[0.15] contrast-[0.95]" /><div className="absolute inset-0 bg-gradient-to-t from-[#4e3c2e]/90 to-transparent opacity-60"></div></div>))}</div></div>
+                    <div className="px-5 pt-5 pb-4"><h2 className="text-2xl font-bold mb-1" style={{ color: COLORS.text }}>{property.title}</h2><div className="flex items-center gap-1.5 text-sm mb-1"><span className="font-bold flex items-center" style={{ color: COLORS.text }}>{property.rating} <Icon name="star" size={12} fill={COLORS.star} className="text-[#e69a4d] ml-0.5" /></span><span className="text-[#b9b0a6]">({property.ratingCount || 0})</span></div>{property.tags && <p className="text-sm text-[#4e3c2e]/80 mt-1">{property.tags.join(' · ')}</p>}</div>
+                    <div className="flex justify-between px-6 pb-6 border-b border-[#b9b0a6]/20">
+                        {[{ icon: "nav", label: '導航' }, { icon: "phone", label: '通話' }].map((btn, idx) => (
+                            <button key={idx} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
+                                <div className="w-12 h-12 rounded-full border border-[#b9b0a6] flex items-center justify-center text-[#4e3c2e] hover:bg-[#4e3c2e] hover:text-[#faeee1] transition-colors shadow-sm bg-white">
+                                    <Icon name={btn.icon} size={20} />
+                                </div>
+                                <span className="text-xs font-medium text-[#4e3c2e]">{btn.label}</span>
+                            </button>
+                        ))}
+                        <button onClick={onToggleFavorite} className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
+                            <div className={`w-12 h-12 rounded-full border flex items-center justify-center transition-colors shadow-sm ${isFavorite ? 'border-[#e69a4d] bg-[#e69a4d]/10' : 'border-[#b9b0a6] bg-white hover:bg-[#4e3c2e] hover:text-[#faeee1]'}`}>
+                                <Icon name="heart" size={20} fill={isFavorite ? '#e69a4d' : 'none'} className={isFavorite ? 'text-[#e69a4d]' : ''} />
+                            </div>
+                            <span className={`text-xs font-medium ${isFavorite ? 'text-[#e69a4d]' : 'text-[#4e3c2e]'}`}>{isFavorite ? '已收藏' : '收藏'}</span>
+                        </button>
+                        <button className="flex flex-col items-center gap-1.5 active:scale-95 transition-transform">
+                            <div className="w-12 h-12 rounded-full border border-[#b9b0a6] flex items-center justify-center text-[#4e3c2e] hover:bg-[#4e3c2e] hover:text-[#faeee1] transition-colors shadow-sm bg-white">
+                                <Icon name="share-2" size={20} />
+                            </div>
+                            <span className="text-xs font-medium text-[#4e3c2e]">分享</span>
+                        </button>
+                    </div>
+                    <div className="px-5 py-6 space-y-4 border-b border-[#b9b0a6]/20"><p className="leading-relaxed text-[#4e3c2e] text-sm opacity-90">{property.desc || "暫無簡介"}</p><div className="flex items-start gap-4 text-sm text-[#4e3c2e]"><Icon name="mapPin" size={20} className="shrink-0 opacity-70 mt-0.5" /><span>{property.address || "埔里鎮"}</span></div><div className="flex items-start gap-4 text-sm text-[#4e3c2e]"><Icon name="clock" size={20} className="shrink-0 opacity-70 mt-0.5" /><span>{property.price || "營業時間依店家規定"}</span></div></div>
+                    {/* 傳遞 isHousing 與 title 給 CommuteInfo */}
+                    {property.commute && <CommuteInfo commute={property.commute} title={property.title} isHousing={isHousing} />}
+                    <div className="px-5 py-6 bg-white/30">
+                        <div className="flex items-center justify-between mb-4"><h3 className="font-bold text-lg" style={{ color: COLORS.text }}>評價</h3><span className="text-xs font-bold text-[#4e3c2e] opacity-60">查看全部 {property.ratingCount || 0} 則</span></div>
+                        {status === 'verified' ? (
+                            <div className="mb-6 p-4 bg-white rounded-xl shadow-sm border border-[#b9b0a6]/20"><div className="flex items-center gap-2 mb-3"><div className="w-8 h-8 rounded-full bg-[#faeee1] flex items-center justify-center text-[#4e3c2e] font-bold text-xs">Me</div><span className="text-sm font-bold text-[#4e3c2e]">LINE User</span><span className="text-[10px] bg-[#e69a4d]/10 text-[#e69a4d] px-1.5 py-0.5 rounded ml-auto flex items-center gap-1"><Icon name="check" size={10} /> 已驗證</span></div><div className="flex gap-1 mb-3">{[1, 2, 3, 4, 5].map(i => (<Icon key={i} name="star" size={16} className="text-[#b9b0a6] hover:text-[#e69a4d] cursor-pointer transition-colors" />))}</div><div className="relative"><textarea value={reviewText} onChange={(e) => setReviewText(e.target.value)} placeholder="分享你的心得..." className="w-full h-24 p-3 bg-gray-50 rounded-lg text-sm text-[#4e3c2e] outline-none border border-transparent focus:border-[#4e3c2e]/30 resize-none pr-10" /><button className="absolute bottom-3 left-3 text-[#4e3c2e]/50 hover:text-[#4e3c2e]"><Icon name="camera" size={20} /></button><button onClick={handleReviewSubmit} className="absolute bottom-3 right-3 w-8 h-8 bg-[#4e3c2e] rounded-full flex items-center justify-center text-white shadow-md active:scale-90 transition-transform"><Icon name="send" size={14} /></button></div></div>
+                        ) : (<div onClick={openVerification} className="mb-6 p-5 bg-white rounded-xl shadow-sm border-2 border-dashed border-[#b9b0a6]/50 flex flex-col items-center text-center cursor-pointer hover:bg-[#faeee1]/30 transition-colors"><div className="w-12 h-12 bg-[#b9b0a6]/10 rounded-full flex items-center justify-center text-[#4e3c2e] mb-2"><Icon name={status === 'pending' ? 'time' : 'lock'} size={24} /></div><h4 className="font-bold text-[#4e3c2e] text-sm mb-1">{status === 'pending' ? '身份審核中' : '驗證學生身份以解鎖'}</h4><p className="text-xs text-[#b9b0a6] mb-3">{status === 'pending' ? '請耐心等候，通過後即可評價' : '僅限暨大在校生評論與分享照片'}</p>{status !== 'pending' && <button className="px-4 py-1.5 bg-[#4e3c2e] text-[#faeee1] rounded-full text-xs font-bold">前往驗證</button>}</div>)}
+                        <div className="space-y-4">{property.reviews && property.reviews.length > 0 ? property.reviews.map((review, i) => (<div key={i} className="flex gap-3"><div className="w-8 h-8 rounded-full bg-[#b9b0a6] flex items-center justify-center text-white text-xs font-bold shrink-0">{review.name.charAt(0)}</div><div className="flex-1"><div className="flex items-center justify-between mb-0.5"><span className="text-sm font-bold text-[#4e3c2e]">{review.name}</span><span className="text-xs text-[#b9b0a6]">{review.time}</span></div><div className="flex mb-1">{[...Array(5)].map((_, starI) => (<Icon key={starI} name="star" size={10} fill={starI < review.rating ? COLORS.star : "none"} className={starI < review.rating ? "text-[#e69a4d]" : "text-[#b9b0a6]"} />))}</div><p className="text-sm text-[#4e3c2e] leading-snug opacity-90">{review.text}</p></div></div>)) : (<p className="text-sm text-[#b9b0a6] text-center py-2">尚無文字評價</p>)}</div>
+                    </div>
+                    <div className="h-safe-bottom bg-transparent" />
+                </div>
+            );
+        };
+
+        const SpecialsFeed = ({ onClickCard }) => (
+            <div className="px-5 pb-safe-bottom pt-6 bg-[#faeee1] min-h-full">
+                <div className="mb-6 flex items-center justify-center relative">
+                    <div className="absolute left-0 top-1/2 w-full h-[1px] bg-[#b9b0a6]/30"></div>
+                    <span className="relative z-10 bg-[#faeee1] px-4 font-bold text-lg text-[#4e3c2e] tracking-widest">本月精選</span>
+                </div>
+                <div className="space-y-6">
+                    {SPECIALS.map(s => (
+                        <div key={s.id} onClick={() => onClickCard(s.locId)} className="bg-white rounded-2xl overflow-hidden shadow-md cursor-pointer hover:shadow-xl transition-shadow border border-[#b9b0a6]/10 group">
+                            <div className="h-48 relative overflow-hidden">
+                                <img src={s.image} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-[#4e3c2e]/90 via-transparent to-transparent opacity-80"></div>
+                                <div className="absolute top-3 right-3 bg-[#e69a4d] text-[#faeee1] text-xs font-bold px-3 py-1 rounded-full shadow-sm">{s.date}</div>
+                                <div className="absolute bottom-4 left-4 right-4">
+                                    <h3 className="text-xl font-bold text-[#faeee1] mb-1">{s.title}</h3>
+                                </div>
+                            </div>
+                            <div className="p-4">
+                                <p className="text-sm text-[#4e3c2e]/80 leading-relaxed mb-3">{s.desc}</p>
+                                <div className="flex items-center text-xs font-bold text-[#e69a4d]">
+                                    查看地圖位置 <Icon name="mapPin" size={14} className="ml-1" />
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                <div className="h-24"></div>
+            </div>
+        );
+
+        const GuideCarousel = () => (
+            <div className="pt-2 pb-6 -mx-5 px-5">
+                <div className="flex gap-4 overflow-x-auto snap-x no-scrollbar pb-2 px-1">
+                    {GUIDE_CARDS.map(card => (
+                        <div key={card.id} className="w-[80%] shrink-0 snap-center bg-white rounded-[24px] p-5 shadow-sm border border-[#b9b0a6]/20 flex flex-col justify-between h-40 relative overflow-hidden group">
+                            {/* 右下角裝飾 Icon */}
+                            <div className="absolute -bottom-4 -right-4 text-[#e69a4d]/10 transform rotate-12 scale-150 pointer-events-none transition-transform group-hover:scale-[1.7] group-hover:rotate-6">
+                                <Icon name={card.icon} size={80} />
+                            </div>
+
+                            <div className="relative z-10 flex flex-col h-full">
+                                {/* 左上角膠囊標籤 */}
+                                <div className="self-start px-2.5 py-1 rounded-full bg-[#e69a4d]/10 mb-3 flex items-center gap-1.5 backdrop-blur-sm">
+                                    <Icon name={card.icon} size={10} className="text-[#e69a4d]" />
+                                    <span className="text-[10px] font-bold text-[#e69a4d] tracking-wide">{card.tag}</span>
+                                </div>
+
+                                <h4 className="font-bold text-base text-[#4e3c2e] leading-snug mb-2 line-clamp-1">{card.title}</h4>
+                                <p className="text-xs text-[#4e3c2e]/70 leading-relaxed line-clamp-2">{card.desc}</p>
+
+                                <div className="mt-auto flex justify-end">
+                                    <span className="text-[10px] font-bold text-[#b9b0a6] flex items-center group-hover:text-[#4e3c2e] transition-colors">
+                                        閱讀更多 <Icon name="nav" size={12} className="ml-1" />
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+
+        const BottomSheet = ({ snapState, setSnapState, selectedProperty, setSelectedProp, onClearSelection, status, openVerification, appMode, showSpecials, setAppMode, setShowSpecials, showAbout, setShowAbout, showFavorites, setShowFavorites, favorites, setFavorites, isFavorite, toggleFavorite, favoritesTab }) => {
+            const controls = useAnimation(); const dragControls = useDragControls(); const variants = { peek: { y: "85vh" }, half: { y: "55vh" }, full: { y: "0vh" } };
+            useEffect(() => { controls.start(snapState); }, [snapState, controls]);
+            const handleDragEnd = (event, info) => { const offset = info.offset.y; const velocity = info.velocity.y; if (velocity < -500 || offset < -100) { if (snapState === 'peek') setSnapState('half'); else if (snapState === 'half') setSnapState('full'); } else if (velocity > 500 || offset > 100) { if (snapState === 'full') setSnapState('half'); else if (snapState === 'half') setSnapState('peek'); } else { controls.start(snapState); } };
+
+            // Logic for List Content
+            const currentList = appMode === 'coffee' ? COFFEE_SHOPS : PROPERTIES;
+
+            return (
+                <motion.div drag="y" dragControls={dragControls} dragListener={false} dragConstraints={{ top: 0, bottom: 0 }} dragElastic={0.2} onDragEnd={handleDragEnd} animate={controls} variants={variants} initial="peek" transition={{ type: "spring", damping: 25, stiffness: 200 }} className={`fixed bottom-0 left-0 right-0 z-30 w-full h-[100dvh] rounded-t-[24px] shadow-[0_-8px_30px_rgba(78,60,46,0.15)] overflow-hidden flex flex-col bg-[#faeee1] ${snapState === 'full' ? 'rounded-t-none' : ''}`}>
+                    <div onPointerDown={(e) => dragControls.start(e)} className={`w-full flex justify-center shrink-0 cursor-grab active:cursor-grabbing touch-none z-40 bg-[#faeee1] transition-all ${snapState === 'full' && (selectedProperty || showSpecials || showAbout || showFavorites) ? 'absolute top-0 opacity-0 pointer-events-none' : 'pt-3 pb-2'}`}><div className="w-10 h-[5px] rounded-full bg-[#b9b0a6]" /></div>
+                    <div className="flex-1 overflow-y-auto overscroll-contain bg-[#faeee1]">
+                        {showAbout ? (
+                            <AboutContent onClose={() => setShowAbout(false)} />
+                        ) : showFavorites ? (
+                            <FavoritesPage 
+                                onClose={() => setShowFavorites(false)} 
+                                favorites={favorites}
+                                onRemove={(id) => setFavorites(favorites.filter(f => String(f.id) !== String(id)))}
+                                onUpdateStatus={(id, newStatus) => setFavorites(favorites.map(f => String(f.id) === String(id) ? { ...f, status: newStatus } : f))}
+                                onSelect={(item) => {
+                                    setSelectedProp(item);
+                                    setShowFavorites(false);
+                                    setSnapState('half');
+                                }}
+                                onToast={(msg) => { setToast(msg); setTimeout(() => setToast(null), 2500); }}
+                                initialTab={favoritesTab}
+                            />
+                        ) : showSpecials ? (
+                            <div className="h-full relative">
+                                <button onClick={() => setShowSpecials(false)} className="absolute top-4 left-4 z-20 w-10 h-10 rounded-full bg-white/90 backdrop-blur shadow-md flex items-center justify-center text-[#4e3c2e]"><Icon name="back" size={20} /></button>
+                                <SpecialsFeed onClickCard={(locId) => {
+                                    let target = COFFEE_SHOPS.find(c => c.id === locId);
+                                    if (!target) target = PROPERTIES.find(p => p.id === locId);
+                                    if (!target) target = OTHER_LOCATIONS.find(o => o.id === locId);
+
+                                    if (target) {
+                                        if (target.id.startsWith('c')) setAppMode('coffee');
+                                        else setAppMode('housing');
+
+                                        setShowSpecials(false);
+                                        // 關鍵修正：直接設定 State，不使用 setTimeout 或清空操作
+                                        setSelectedProp(target);
+                                        setSnapState('half');
+                                    }
+                                }} />
+                            </div>
+                        ) : selectedProperty ? (
+                            <PropertyDetails 
+                                property={selectedProperty} 
+                                onBack={onClearSelection} 
+                                status={status} 
+                                openVerification={openVerification}
+                                isFavorite={selectedProperty ? isFavorite(selectedProperty.id) : false}
+                                onToggleFavorite={() => selectedProperty ? toggleFavorite(selectedProperty) : () => {}}
+                            />
+                        ) : (
+                            <div className="px-5 pb-safe-bottom pt-2">
+                                <div className="text-center py-2 mb-4">
+                                    <p className="font-bold text-lg tracking-wide" style={{ color: COLORS.text }}>
+                                        {appMode === 'coffee' ? `探索 ${currentList.length} 間讀書咖啡廳` : `探索周邊 ${currentList.length} 間房源`}
+                                    </p>
+                                </div>
+                                <h4 className="text-sm font-bold opacity-60 mb-3" style={{ color: COLORS.text }}>{appMode === 'coffee' ? '推薦店家' : '精選推薦'}</h4>
+                                <div className="flex gap-4 overflow-x-auto pb-4 -mx-5 px-5 snap-x no-scrollbar">
+                                    {currentList.map(p => {
+                                        const fav = favorites.find(f => String(f.id) === String(p.id));
+                                        return (
+                                        <div key={p.id} onClick={() => { setSelectedProp(p); setSheetState('half'); }} className="shrink-0 w-[260px] rounded-[20px] overflow-hidden bg-white shadow-sm snap-center border border-[#b9b0a6]/20 relative group">
+                                            <div className="h-36 relative overflow-hidden">
+                                                <img src={p.images[0]} className="w-full h-full object-cover sepia-[0.1] contrast-[0.95]" />
+                                                <div className="absolute inset-0 bg-gradient-to-t from-[#4e3c2e]/90 to-transparent opacity-80"></div>
+                                                <div className="absolute top-3 left-3 w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm">
+                                                    <Icon name="heart" size={16} fill={fav ? '#e69a4d' : 'none'} className={fav ? 'text-[#e69a4d]' : 'text-[#b9b0a6]'} />
+                                                </div>
+                                                <div className="absolute bottom-3 left-3 text-[#faeee1]">
+                                                    <h5 className="font-bold text-lg leading-tight">{p.title}</h5>
+                                                    <p className="text-xs opacity-90 font-medium mt-0.5">{p.price}</p>
+                                                </div>
+                                                <div className="absolute top-3 right-3 bg-[#faeee1]/90 backdrop-blur-sm px-2 py-1 rounded-lg text-[10px] font-bold text-[#4e3c2e] flex items-center shadow-sm">
+                                                    <Icon name="star" size={10} fill={COLORS.text} className="mr-0.5" />{p.rating}
+                                                </div>
+                                            </div>
+                                            {appMode === 'coffee' && (
+                                                <div className="px-3 py-2 flex gap-1 flex-wrap">
+                                                    {p.tags.map(t => <span key={t} className="text-[10px] border border-[#b9b0a6] text-[#4e3c2e] px-1.5 rounded-full">{t}</span>)}
+                                                </div>
+                                            )}
+                                        </div>
+                                        );
+                                    })}
+                                </div>
+                                <div className="pt-4 space-y-4"><div className="h-[1px] w-full bg-[#b9b0a6]/30" /><p className="text-sm opacity-60 text-center text-[#4e3c2e] mb-2">繼續探索更多...</p><GuideCarousel /><div className="h-20" /></div>
+                            </div>
+                        )}
+                    </div>
+                </motion.div>
+            );
+        };
+
+        const MapBackground = () => (<div className="absolute inset-0 z-0 overflow-hidden pointer-events-none" style={{ backgroundColor: COLORS.land }}><div className="absolute top-0 right-0 w-64 h-64 rounded-bl-full opacity-50" style={{ backgroundColor: COLORS.water }}></div><svg className="w-full h-full absolute inset-0"><defs><filter id="road-border" x="-20%" y="-20%" width="140%" height="140%"><feMorphology operator="dilate" radius="1.5" in="SourceAlpha" result="thicken" /><feFlood floodColor={COLORS.stroke} result="color" /><feComposite in="color" in2="thicken" operator="in" result="outline" /><feMerge><feMergeNode in="outline" /><feMergeNode in="SourceGraphic" /></feMerge></filter></defs><g filter="url(#road-border)" stroke={COLORS.road} strokeLinecap="round" fill="none"><path d="M-10 100 Q 150 150 400 50 T 900 200" strokeWidth="16" /><path d="M200 -10 L 250 900" strokeWidth="14" /><path d="M50 300 L 400 350 L 800 300" strokeWidth="10" /><path d="M100 500 Q 200 600 300 500 T 500 600" strokeWidth="10" /></g></svg></div>);
+        const Marker = ({ x, y, onClick, active, type }) => (
+            <motion.button className={`absolute -translate-x-1/2 -translate-y-full cursor-pointer z-10 outline-none ${active ? 'marker-enter z-20' : ''}`} style={{ left: x, top: y }} whileTap={{ scale: 0.9 }} animate={{ scale: active ? 1.2 : 1, y: active ? -15 : 0 }} onClick={(e) => { e.stopPropagation(); onClick(); }}>
+                {type === 'coffee' ? (
+                    <div className="w-10 h-10 bg-[#4e3c2e] rounded-full flex items-center justify-center shadow-lg border-2 border-white">
+                        <Icon name="coffee" size={20} className="text-white" color="white" />
+                    </div>
+                ) : (
+                    <svg width="40" height="48" viewBox="0 0 40 48" fill="none" className="drop-shadow-[0_4px_6px_rgba(78,60,46,0.4)]"><path d="M20 0C8.9543 0 0 8.9543 0 20C0 31.0457 20 48 20 48C20 48 40 31.0457 40 20C40 8.9543 31.0457 0 20 0Z" fill={COLORS.text} stroke={active ? COLORS.stroke : "none"} strokeWidth={active ? 2 : 0} /><circle cx="20" cy="20" r="8" fill="white" /></svg>
+                )}
+            </motion.button>
+        );
+
+        const App = () => {
+            const [selectedProp, setSelectedProp] = useState(null);
+            const [sheetState, setSheetState] = useState('peek');
+            const [verificationStatus, setVerificationStatus] = useState(() => localStorage.getItem('verificationStatus') || 'unverified');
+            const [showVerification, setShowVerification] = useState(false);
+            const [showUserMenu, setShowUserMenu] = useState(false);
+            const [showSideMenu, setShowSideMenu] = useState(false);
+            const deepLinkProcessed = useRef(false); // 用於追蹤是否已處理深度連結
+            const [userData, setUserData] = useState(() => {
+                const saved = localStorage.getItem('userData');
+                return saved ? JSON.parse(saved) : null;
+            });
+            const [appMode, setAppMode] = useState('housing');
+            const [showSpecials, setShowSpecials] = useState(false);
+            const [showAbout, setShowAbout] = useState(false);
+            const [showFavorites, setShowFavorites] = useState(false);
+            const [favoritesTab, setFavoritesTab] = useState('homes');
+            const [toast, setToast] = useState(null);
+            const [favorites, setFavorites] = useState(() => {
+                const saved = localStorage.getItem('favorites');
+                return saved ? JSON.parse(saved) : [];
+            });
+
+            useEffect(() => {
+                localStorage.setItem('verificationStatus', verificationStatus);
+            }, [verificationStatus]);
+
+            useEffect(() => {
+                if (userData) {
+                    localStorage.setItem('userData', JSON.stringify(userData));
+                } else {
+                    localStorage.removeItem('userData');
+                }
+            }, [userData]);
+
+            useEffect(() => {
+                localStorage.setItem('favorites', JSON.stringify(favorites));
+            }, [favorites]);
+
+            // ============================================================
+            // [API/深度連結預留區塊] - LIFF Deep Linking 處理
+            // ============================================================
+            // 
+            // 用途：當使用者從 LINE 聊天室點擊房源卡片時，會帶入 propertyId 參數
+            // 網址格式範例：https://liff.line.me/xxx?propertyId=1
+            //
+            // 【未來擴充方向】
+            // 1. 改為向後端 API 請求資料：
+            //    const response = await fetch(`/api/properties/${propertyId}`);
+            //    const propertyData = await response.json();
+            //    setSelectedProp(propertyData);
+            //
+            // 2. 或保留本地資料查詢（如目前實作）
+            // ============================================================
+
+            useEffect(() => {
+                // ============================================================
+                // [API/深度連結預留區塊] - LIFF Deep Linking 處理
+                // ============================================================
+                // 
+                // 用途：當使用者從 LINE 聊天室點擊房源卡片時，會帶入 propertyId 參數
+                // 網址格式範例：https://liff.line.me/xxx?propertyId=1
+                //
+                // 【未來擴充方向】
+                // 1. 改為向後端 API 請求資料：
+                //    const response = await fetch(`/api/properties/${propertyId}`);
+                //    const propertyData = await response.json();
+                //    setSelectedProp(propertyData);
+                //
+                // 2. 或保留本地資料查詢（如目前實作）
+                // ============================================================
+
+                // 防呆：若已處理過深度連結，不重複執行（避免用戶手動操作後被覆蓋）
+                if (deepLinkProcessed.current) return;
+
+                // 解析 URL 參數
+                const urlParams = new URLSearchParams(window.location.search);
+                const propertyId = urlParams.get('propertyId');
+
+                // 若無 propertyId 參數，不執行任何操作
+                if (!propertyId) return;
+
+                // 標記為已處理
+                deepLinkProcessed.current = true;
+
+                // 定義聯合搜尋函數
+                const findPropertyById = (id) => {
+                    // 1. 先搜尋 PROPERTIES (房源)
+                    const fromProperties = PROPERTIES.find(p => String(p.id) === String(id));
+                    if (fromProperties) {
+                        fromProperties.type = 'housing'; // 確保類型正確
+                        return fromProperties;
+                    }
+
+                    // 2. 搜尋 COFFEE_SHOPS (咖啡廳)
+                    const fromCoffee = COFFEE_SHOPS.find(c => String(c.id) === String(id));
+                    if (fromCoffee) {
+                        return fromCoffee;
+                    }
+
+                    // 3. 搜尋 OTHER_LOCATIONS (活動/店鋪)
+                    const fromOther = OTHER_LOCATIONS.find(o => String(o.id) === String(id));
+                    if (fromOther) {
+                        return fromOther;
+                    }
+
+                    return null; // 找不到
+                };
+
+                const targetProperty = findPropertyById(propertyId);
+
+                if (targetProperty) {
+                    // 【找到房源】自動執行選中邏輯
+                    setSelectedProp(targetProperty);
+                    setSheetState('half');
+                    setShowSpecials(false);
+                    setShowAbout(false);
+
+                    // 根據類型自動切換地圖模式
+                    if (targetProperty.type === 'housing') {
+                        setAppMode('housing');
+                    } else if (String(targetProperty.id).startsWith('c')) {
+                        setAppMode('coffee');
+                    }
+
+                    // 可選：顯示 Toast 提示
+                    // setToast(`已開啟：${targetProperty.title}`);
+                    // setTimeout(() => setToast(null), 3000);
+
+                } else {
+                    // 【找不到房源】防呆處理
+                    // TODO: 未來可改為向 API 請求確認是否為有效 ID
+                    console.warn(`[Deep Linking] 找不到 ID 為 ${propertyId} 的房源`);
+                    
+                    // 可選：顯示錯誤提示
+                    // setToast('找不到該房源');
+                    // setTimeout(() => setToast(null), 3000);
+                }
+            }, [selectedProp, appMode, setSelectedProp, setSheetState, setShowSpecials, setShowAbout, setAppMode]); // 完整依賴陣列
+
+            // ============================================================
+            // [地圖互動優化] - Map Panning 邏輯
+            // ============================================================
+            // 
+            // 當 selectedProp 變更時，確保地圖會移動到該標記位置
+            // 目前通過 setSheetState('half') 展開詳細資訊
+            // 若未來需要地圖中心移動，可在此處實作
+            // ============================================================
+
+            const toggleFavorite = (property) => {
+                if (!property) return;
+                
+                const propertyId = String(property.id);
+                const isHousing = property.type === 'housing';
+                const newTab = isHousing ? 'homes' : 'life';
+                const exists = favorites.find(f => String(f.id) === propertyId);
+                if (exists) {
+                    setFavorites(favorites.filter(f => String(f.id) !== propertyId));
+                    setFavoritesTab(newTab);
+                    setToast('已從收藏移除');
+                } else {
+                    setFavorites([...favorites, { 
+                        ...property, 
+                        status: 'saved', 
+                        addedAt: new Date().toISOString() 
+                    }]);
+                    setFavoritesTab(newTab);
+                    const listName = isHousing ? '找房清單' : '生活口袋';
+                    setToast(`已存入「${listName}」`);
+                }
+                setTimeout(() => setToast(null), 2500);
+            };
+
+            const updateFavoriteStatus = (propertyId, newStatus) => {
+                setFavorites(favorites.map(f => 
+                    String(f.id) === String(propertyId) ? { ...f, status: newStatus } : f
+                ));
+            };
+
+            const isFavorite = (propertyId) => {
+                if (propertyId === undefined || propertyId === null) return false;
+                return favorites.some(f => String(f.id) === String(propertyId));
+            };
+
+            useEffect(() => {
+                const handlePopState = () => { if (sheetState === 'full') setSheetState('half'); else if (selectedProp || showSpecials || showAbout || showFavorites) { setSelectedProp(null); setShowSpecials(false); setShowAbout(false); setShowFavorites(false); setSheetState('peek'); } };
+                if (sheetState === 'full' || selectedProp || showSpecials || showAbout || showFavorites) window.history.pushState({ panel: 'open' }, '');
+                window.addEventListener('popstate', handlePopState);
+                return () => window.removeEventListener('popstate', handlePopState);
+            }, [sheetState, selectedProp, showSpecials, showAbout, showFavorites]);
+
+            const displayProperties = appMode === 'coffee' ? COFFEE_SHOPS : PROPERTIES;
+
+            return (
+                <div className="relative w-full h-[100dvh] overflow-hidden font-sans" style={{ backgroundColor: COLORS.land }}>
+                    <MapBackground />
+                    <div className={`absolute inset-0 z-0 transition-all duration-300 ${sheetState === 'full' ? 'pointer-events-none opacity-50' : ''}`}>
+                        <div className="pointer-events-auto w-full h-full relative">
+                            {/* 1. 渲染標準模式下的 Marker */}
+                            {displayProperties.map(p => (
+                                <Marker
+                                    key={p.id}
+                                    x={p.x} y={p.y} // 使用資料庫中的座標
+                                    active={selectedProp?.id === p.id}
+                                    type={appMode}
+                                    onClick={() => { setSelectedProp(p); setSheetState('half'); setShowSpecials(false); setShowAbout(false); }}
+                                />
+                            ))}
+                            {/* 2. [修正] 強制渲染特殊活動的 Marker (吉他社/早餐店) 只有當它被選中時才出現 */}
+                            {selectedProp && OTHER_LOCATIONS.find(o => o.id === selectedProp.id) && (
+                                <Marker
+                                    x={selectedProp.x}
+                                    y={selectedProp.y}
+                                    active={true}
+                                    type={appMode}
+                                    onClick={() => { }}
+                                />
+                            )}
+                        </div>
+                    </div>
+
+                    <motion.div animate={{ y: sheetState === 'full' ? -100 : 0, opacity: sheetState === 'full' ? 0 : 1 }} className="absolute top-0 left-0 right-0 z-20 px-4 pt-safe-top pb-2 flex flex-col items-center pointer-events-none">
+                        <div className="w-full max-w-md pointer-events-auto mt-4 space-y-3">
+                            <div className="bg-white rounded-full h-12 flex items-center px-4 shadow-[0_4px_16px_rgba(78,60,46,0.1)] border border-[#b9b0a6]/30">
+                                <button className="mr-3 text-[#4e3c2e] opacity-60 pointer-events-auto" onClick={() => setShowSideMenu(true)}><Icon name="menu" size={20} /></button>
+                                <input type="text" placeholder={appMode === 'coffee' ? "搜尋咖啡廳、插座..." : "搜尋地標或路名..."} className="flex-1 bg-transparent outline-none text-base placeholder-[#b9b0a6] text-[#4e3c2e]" onFocus={() => setSheetState('peek')} />
+                                <button onClick={() => setShowUserMenu(!showUserMenu)} className="w-8 h-8 bg-[#faeee1] rounded-full flex items-center justify-center border border-[#b9b0a6]/50 overflow-hidden relative pointer-events-auto"><div className="text-xs font-bold text-[#4e3c2e]">{userData ? userData.name.charAt(0) : "L"}</div></button>
+                            </div>
+                        </div>
+                    </motion.div>
+
+                    <AnimatePresence>
+                        {showSideMenu && <SideMenu isOpen={showSideMenu} onClose={() => setShowSideMenu(false)} setAppMode={setAppMode} setSheetState={setSheetState} setShowSpecials={setShowSpecials} setShowAbout={setShowAbout} />}
+                        {showVerification && (<VerificationCenter onClose={() => setShowVerification(false)} status={verificationStatus} setStatus={setVerificationStatus} setUserData={setUserData} />)}
+                        {showUserMenu && (<UserMenu user={userData} onClose={() => setShowUserMenu(false)} onOpenVerification={() => setShowVerification(true)} onLogout={() => setUserData(null)} onOpenFavorites={() => { setShowUserMenu(false); setShowFavorites(true); setSheetState('full'); }} />)}
+                    </AnimatePresence>
+
+                    <motion.button whileTap={{ scale: 0.9 }} className="absolute right-5 z-20 w-14 h-14 bg-white rounded-full shadow-[0_4px_16px_rgba(78,60,46,0.2)] flex items-center justify-center text-[#4e3c2e] border border-[#b9b0a6]/20" style={{ bottom: sheetState === 'full' ? '-100px' : 'calc(15vh + 30px)', transition: 'bottom 0.4s' }}><Icon name="nav" size={24} fill={COLORS.text} /></motion.button>
+
+                    <BottomSheet
+                        snapState={sheetState}
+                        setSnapState={setSheetState}
+                        selectedProperty={selectedProp}
+                        setSelectedProp={setSelectedProp}
+                        onClearSelection={() => { setSelectedProp(null); setSheetState('peek'); }}
+                        status={verificationStatus}
+                        openVerification={() => setShowVerification(true)}
+                        appMode={appMode}
+                        setAppMode={setAppMode}
+                        showSpecials={showSpecials}
+                        setShowSpecials={setShowSpecials}
+                        showAbout={showAbout}
+                        setShowAbout={setShowAbout}
+                        showFavorites={showFavorites}
+                        setShowFavorites={setShowFavorites}
+                        favorites={favorites}
+                        setFavorites={setFavorites}
+                        isFavorite={isFavorite}
+                        toggleFavorite={toggleFavorite}
+                        favoritesTab={favoritesTab}
+                    />
+                    
+                    {toast && (
+                        <div className="fixed inset-0 z-50 flex items-end justify-center pb-32 pointer-events-none">
+                            <button 
+                                className="bg-[#4e3c2e] text-[#faeee1] px-6 py-3 rounded-full text-sm font-bold shadow-lg flex items-center gap-2 whitespace-nowrap animate-bounce pointer-events-auto hover:bg-[#4e3c2e]/90 transition-colors cursor-pointer"
+                                onClick={() => { setToast(null); setShowFavorites(true); setSheetState('full'); }}
+                            >
+                                <Icon name="check" size={18} />
+                                {toast}
+                                <Icon name="chevron-right" size={14} className="ml-1 opacity-70" />
+                            </button>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+
+</html>

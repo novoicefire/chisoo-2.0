@@ -1,0 +1,84 @@
+/**
+ * Chi．Soo 暨宿 - 主樣式檔
+ * 設計系統色彩與基礎樣式
+ */
+
+@import "tailwindcss";
+
+/* Custom Design Tokens */
+@theme {
+  --color-land: #faeee1;
+  --color-text: #4e3c2e;
+  --color-stroke: #b9b0a6;
+  --color-road: #ffffff;
+  --color-water: #e8dfd6;
+  --color-star: #e69a4d;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Roboto", sans-serif;
+
+  --spacing-safe-top: env(safe-area-inset-top);
+  --spacing-safe-bottom: env(safe-area-inset-bottom);
+}
+
+/* Base Styles */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  background-color: var(--color-land);
+  font-family: var(--font-sans);
+}
+
+/* Scrollbar Hide */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Flow Animation for Route Lines */
+@keyframes flow {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+.animate-flow {
+  stroke-dasharray: 8 4;
+  animation: flow 1s linear infinite;
+}
+
+/* Marker Bounce Animation */
+@keyframes bounce-marker {
+  0% {
+    transform: translate(-50%, -100%) scale(0);
+    opacity: 0;
+  }
+
+  50% {
+    transform: translate(-50%, -120%) scale(1.2);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate(-50%, -100%) scale(1);
+    opacity: 1;
+  }
+}
+
+.marker-enter {
+  animation: bounce-marker 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* Hide Mapbox Logo & Attribution */
+.mapboxgl-ctrl-logo,
+.mapboxgl-ctrl-attrib,
+.mapboxgl-ctrl-bottom-left,
+.mapboxgl-ctrl-bottom-right {
+  display: none !important;
+}
