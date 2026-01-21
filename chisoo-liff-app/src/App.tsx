@@ -15,7 +15,7 @@ import {
 } from './components';
 import { COFFEE_SHOPS, OTHER_LOCATIONS } from './data';
 import { fetchHouses, checkApiHealth } from './services/apiService';
-import { initLiff, liffLogout } from './services/liffService';
+import { initLiff, liffLogout, liffLogin } from './services/liffService';
 import { useLocalStorage } from './hooks';
 import type {
   Property,
@@ -83,6 +83,7 @@ function App() {
     initLiff().then((state) => {
 
       console.info('[LIFF] Initialized:', state.isLoggedIn ? 'logged in' : 'not logged in', state.isInClient ? '(in LINE)' : '(browser)');
+
       // 如果已登入且有 Profile，更新使用者資料
       if (state.isLoggedIn && state.profile) {
         setUserData((prev) => ({
@@ -94,6 +95,11 @@ function App() {
           displayName: state.profile!.displayName,
           pictureUrl: state.profile!.pictureUrl,
         }));
+      } else {
+        // 如果未登入，且沒有本地使用者資料，則執行登入
+        if (!state.isLoggedIn && !userData) {
+          liffLogin();
+        }
       }
     });
   }, []);
