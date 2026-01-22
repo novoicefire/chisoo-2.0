@@ -215,7 +215,7 @@ function App() {
 
   return (
     <div
-      className="relative w-full h-[100dvh] overflow-hidden font-sans"
+      className="relative w-full h-dvh overflow-hidden font-sans"
       style={{ backgroundColor: COLORS.land }}
     >
       {/* Mapbox 真實地圖 */}

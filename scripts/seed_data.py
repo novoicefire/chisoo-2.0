@@ -149,135 +149,179 @@ def seed_sample_houses():
     """初始化範例房源資料"""
     
     houses_data = [
-        # 真實埔里租屋資料 (座標來自 Google Maps)
         {
-            "name": "桃米生態村雅房",
-            "address": "南投縣埔里鎮桃米巷68號",
+            "name": "【山水桃米】",
+            "address": "南投縣埔里鎮桃米里種瓜路1-1號",
+            "category_tag": "type_E",
+            "rent": 5000,
+            "room_type": "獨立套房",
+            "features": {"wifi": True, "ac": False, "laundry": False, "fridge": True}, # 根據描述: 網路免費, 沒寫冷氣但通常有? 圖片有冷氣
+            "description": "與大自然共舞，環境清幽。透天、獨立電表、水泥隔間。(第四臺+網路費+水費)全免，無菸租屋。",
+            "image_url": "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/2338x1.jpg",
+            "images": [
+                "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/2338x1.jpg",
+                "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/2338x2.jpg",
+                "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/2338x3.jpg"
+            ],
+            "latitude": 23.941075941054237,
+            "longitude": 120.92406204456546,
+        },
+        {
+            "name": "近市區水裡巷雅房",
+            "address": "南投縣埔里鎮大城里水裡巷2號",
+            "category_tag": "type_A",
+            "rent": 2300,
+            "room_type": "雅房",
+            "features": {"wifi": False, "ac": False},
+            "description": "近市區、全聯、星巴克、85度C、拉麵店...生活機能強。透天、獨立電表。",
+            "image_url": "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/2380x1_20210407-150629.jpg",
+            "images": [
+                "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/2380x1_20210407-150629.jpg",
+                "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/2380x2_20210407-150538.jpg"
+            ],
+            "latitude": 23.968686670756966,
+            "longitude": 120.95654652641345
+        },
+        {
+            "name": "桃米社區近派出所套房",
+            "address": "南投縣埔里鎮桃米里桃米巷36號及36-1號",
             "category_tag": "type_A",
             "rent": 3500,
-            "room_type": "雅房",
-            "features": {"wifi": True, "ac": True},
-            "description": "鄰近暨大桃米校門，騎車5分鐘到校。環境清幽，適合喜歡安靜的同學。",
-            "image_url": "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&q=80",
+            "room_type": "獨立套房",
+            "features": {"wifi": True},
+            "description": "離校近，環境單純。透天、獨立電表、水泥隔間。電費一度4元。",
+            "image_url": "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/2307x1.jpg",
             "images": [
-                "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&q=80",
-                "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=600&q=80"
+                "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/2307x1.jpg",
+                "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/2307x2.jpg"
             ],
-            "latitude": 23.9512,
-            "longitude": 120.9358
+            "latitude": 23.942951843267412,
+            "longitude": 120.93095348131277
         },
         {
-            "name": "大成街電梯套房",
-            "address": "南投縣埔里鎮大成街15號",
-            "category_tag": "type_B",
-            "rent": 6000,
-            "room_type": "套房",
-            "features": {"garbage": True, "elevator": True, "ac": True, "wifi": True, "laundry": True},
-            "description": "子母車收垃圾免追垃圾車！電梯大樓，近全聯、寶雅，生活機能超讚。",
-            "image_url": "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=600&q=80",
+            "name": "南安路清新套房",
+            "address": "南投縣埔里鎮清新里南安路231號",
+            "category_tag": "type_C",
+            "rent": 5000,
+            "room_type": "獨立套房",
+            "features": {"wifi": True, "security": True, "cctv": True, "parking": True, "ac": True},
+            "description": "門禁系統、監視錄影設備、滅火器。無菸租屋。5500元房型附獨立洗衣機。",
+            "image_url": "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/14740x1.jpg",
             "images": [
-                "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=600&q=80",
-                "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=600&q=80"
+                "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/14740x1.jpg",
+                "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/14740x2.jpg"
             ],
-            "latitude": 23.9652,
-            "longitude": 120.9634
+            "latitude": 23.963843419758476,
+            "longitude": 120.95908471467365
         },
         {
-            "name": "中山路三段學生套房",
-            "address": "南投縣埔里鎮中山路三段118號",
+            "name": "桃米巷35-1號套房",
+            "address": "南投縣埔里鎮桃米里桃米巷35-1號",
+            "category_tag": "type_A",
+            "rent": 3600,
+            "room_type": "獨立套房",
+            "features": {"wifi": True},
+            "description": "環境清幽，皆有對外窗戶，有停車場，鄰近暨南大學機車道。水費及公共用電免費。",
+            "image_url": "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/2354x1.jpg",
+            "images": [
+                "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/2354x1.jpg",
+                "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/2354x2.jpg"
+            ],
+            "latitude": 23.941813397481255,
+            "longitude": 120.93074053456257
+        },
+        {
+            "name": "中新居#50號",
+            "address": "南投縣埔里鎮西門里中正二路50號",
             "category_tag": "type_C",
             "rent": 5500,
-            "room_type": "套房",
-            "features": {"security": True, "cctv": True, "ac": True, "wifi": True},
-            "description": "門禁管理、24小時監視器，房東阿姨人很好。近埔里酒廠、7-11。",
-            "image_url": "https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=600&q=80",
+            "room_type": "獨立套房",
+            "features": {"wifi": True, "ac": True, "fridge": True, "laundry": True, "security": True, "cctv": True, "parking": True},
+            "description": "設備齊全：電視、冰箱、冷氣、洗衣機、飲水機。有中庭、停車場、門禁系統。",
+            "image_url": "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/15055x1.jpg",
             "images": [
-                "https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=600&q=80"
+                "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/15055x1.jpg",
+                "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/15055x2.jpg"
             ],
-            "latitude": 23.9680,
-            "longitude": 120.9610
+            "latitude": 23.96879731526369,
+            "longitude": 120.96351076400963
         },
         {
-            "name": "信義路整層三房",
-            "address": "南投縣埔里鎮信義路201號",
-            "category_tag": "type_D",
-            "rent": 15000,
-            "room_type": "整層",
-            "features": {"living_room": True, "kitchen": True, "balcony": True, "parking": True},
-            "description": "適合3-4人分租！有大客廳、廚房可開伙，還有專屬車位。",
-            "image_url": "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=600&q=80",
-            "images": [
-                "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=600&q=80",
-                "https://images.unsplash.com/photo-1560185007-c5ca9d2c014d?w=600&q=80"
-            ],
-            "latitude": 23.9589,
-            "longitude": 120.9701
-        },
-        {
-            "name": "北環路質感新套房",
-            "address": "南投縣埔里鎮北環路58號",
-            "category_tag": "type_E",
-            "rent": 7500,
-            "room_type": "套房",
-            "features": {"balcony": True, "laundry": True, "new_renovation": True, "ac": True, "wifi": True},
-            "description": "2024年新裝潢，獨立陽台可曬衣，採光超好！近愛蘭橋。",
-            "image_url": "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=600&q=80",
-            "images": [
-                "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=600&q=80",
-                "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=600&q=80"
-            ],
-            "latitude": 23.9720,
-            "longitude": 120.9550
-        },
-        {
-            "name": "西安路女生宿舍",
-            "address": "南投縣埔里鎮西安路一段88號",
+            "name": "中山路女生套房",
+            "address": "南投縣埔里鎮大城里中山路三段290號",
             "category_tag": "type_C",
-            "rent": 4800,
-            "room_type": "套房",
-            "features": {"security": True, "cctv": True, "landlord_live_in": True, "ac": True},
-            "description": "限女！房東阿姨同住超安心，門禁晚上11點。適合注重安全的女同學。",
-            "image_url": "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=600&q=80",
+            "rent": 6000,
+            "room_type": "獨立套房",
+            "features": {"wifi": True, "ac": True, "fridge": True, "laundry": True, "dispenser": True},
+            "description": "限女生。生活機能強，採光佳，校車經過。剩3間。",
+            "image_url": "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/2381x1.jpeg",
             "images": [
-                "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=600&q=80"
+                "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/2381x1.jpeg",
+                "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/2381x2.jpeg"
             ],
-            "latitude": 23.9612,
-            "longitude": 120.9645
+            "latitude": 23.968877059902056,
+            "longitude": 120.95745839582938
         },
         {
-            "name": "隆生路平價雅房",
-            "address": "南投縣埔里鎮隆生路55號",
-            "category_tag": "type_A",
-            "rent": 2800,
-            "room_type": "雅房",
-            "features": {"wifi": True},
-            "description": "超省錢選擇！共用衛浴，但空間乾淨。騎車到暨大約15分鐘。",
-            "image_url": "https://images.unsplash.com/photo-1502672023488-70e25813eb80?w=600&q=80",
-            "images": [
-                "https://images.unsplash.com/photo-1502672023488-70e25813eb80?w=600&q=80"
-            ],
-            "latitude": 23.9610,
-            "longitude": 120.9680
-        },
-        {
-            "name": "中正路商圈套房",
-            "address": "南投縣埔里鎮中正路320號",
+            "name": "中新居_48號",
+            "address": "南投縣埔里鎮西門里中正二路48號",
             "category_tag": "type_B",
-            "rent": 6800,
-            "room_type": "套房",
-            "features": {"garbage": True, "elevator": True, "ac": True, "wifi": True, "parking": True},
-            "description": "位於埔里最熱鬧的中正路！樓下就是小吃街，機車有停車位。",
-            "image_url": "https://images.unsplash.com/photo-1560185007-c5ca9d2c014d?w=600&q=80",
+            "rent": 5000,
+            "room_type": "獨立套房",
+            "features": {"wifi": True, "ac": True, "fridge": True, "laundry": True, "dispenser": True},
+            "description": "近市區，生活便利。設備包含冷氣、冰箱、洗衣機、飲水機。",
+            "image_url": "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/2369x1_20210218-164549.jpg",
             "images": [
-                "https://images.unsplash.com/photo-1560185007-c5ca9d2c014d?w=600&q=80",
-                "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=600&q=80"
+                "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/2369x1_20210218-164549.jpg",
+                "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/2369x2.jpeg"
             ],
-            "latitude": 23.9634,
-            "longitude": 120.9623
+            "latitude": 23.96876016397592,
+            "longitude": 120.96355457952117
+        },
+        {
+            "name": "中正二路便利套房",
+            "address": "南投縣埔里鎮西門里中正二路67號",
+            "category_tag": "type_B",
+            "rent": 4500,
+            "room_type": "分租套房",
+            "features": {"wifi": True, "ac": True, "fridge": True, "security": True, "living_room": True},
+            "description": "鄰近嬌豐、埔里西站、郵局。暨大校車必經之路。有交誼廳、門禁感應。",
+            "image_url": "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/7589x1_20241023-171836.jpg",
+            "images": [
+                "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/7589x1_20241023-171836.jpg",
+                "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/7589x2_20241023-171836.jpg"
+            ],
+            "latitude": 23.969166638375473,
+            "longitude": 120.96374294882801
+        },
+        {
+            "name": "南興街清幽套房",
+            "address": "南投縣埔里鎮南興街383號",
+            "category_tag": "type_A",
+            "rent": 3250,
+            "room_type": "獨立套房",
+            "features": {"wifi": True, "ac": True, "fridge": True, "laundry": True},
+            "description": "暨大接駁車有經過，生活機能佳，環境清幽。",
+            "image_url": "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/7583x1.jpg",
+            "images": [
+                "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/7583x1.jpg",
+                "https://house.nfu.edu.tw/uploads/data/NCNU/images_house/7583x2.jpg"
+            ],
+            "latitude": 23.965607971017704,
+            "longitude": 120.96219107775867
         }
     ]
     
     print("🏠 開始初始化範例房源...")
+    
+    # 清空現有房源，確保只有真實資料
+    try:
+        num_deleted = db_session.query(House).delete()
+        db_session.commit()
+        print(f"  🗑️ 已刪除 {num_deleted} 筆舊房源資料")
+    except Exception as e:
+        db_session.rollback()
+        print(f"  ⚠️ 清除舊資料失敗: {e}")
     
     for data in houses_data:
         existing = db_session.query(House).filter_by(name=data["name"]).first()

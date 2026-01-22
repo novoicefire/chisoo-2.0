@@ -18,6 +18,7 @@ from app.models import init_db
 # 啟用 CORS (供 LIFF 前端呼叫)
 CORS(app, origins=[
     "https://liff-app-beige.vercel.app",
+    "https://liff.chisoo.chiran.online",
     "https://liff.line.me",
     "http://localhost:3000",
     "http://localhost:5173",  # Vite Dev
