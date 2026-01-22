@@ -229,7 +229,7 @@ export const VerificationCenter: React.FC<VerificationCenterProps> = ({
                                             required
                                             type="text"
                                             className="w-full h-12 px-4 rounded-xl bg-gray-50 text-text outline-none"
-                                            placeholder="s112..."
+                                            placeholder="112......"
                                             value={formData.studentId}
                                             onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
                                             disabled={isSubmitting}
