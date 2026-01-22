@@ -5,10 +5,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import Icon from '../ui/Icon';
-import type { UserData } from '../../types';
+import type { UserData, VerificationStatus } from '../../types';
 
 interface UserMenuProps {
     user: UserData | null;
+    verificationStatus: VerificationStatus;  // 新增：正確的驗證狀態
     onClose: () => void;
     onOpenVerification: () => void;
     onLogout: () => void;
@@ -17,11 +18,15 @@ interface UserMenuProps {
 
 export const UserMenu: React.FC<UserMenuProps> = ({
     user,
+    verificationStatus,
     onClose,
     onOpenVerification,
     onLogout,
     onOpenFavorites,
 }) => {
+    // 判斷是否已驗證：必須明確檢查 verificationStatus
+    const isVerified = verificationStatus === 'verified';
+
     return (
         <>
             {/* Backdrop */}
@@ -38,14 +43,28 @@ export const UserMenu: React.FC<UserMenuProps> = ({
                 <div className="bg-white rounded-[20px] p-4 flex flex-col items-center shadow-sm mb-2">
                     <div className="w-20 h-20 rounded-full bg-land flex items-center justify-center text-text text-3xl font-bold mb-3 border-4 border-white shadow-inner overflow-hidden">
                         {user?.pictureUrl ? (
-                            <img src={user.pictureUrl} alt={user.name} className="w-full h-full object-cover" />
+                            <img src={user.pictureUrl} alt={user.displayName || user.name} className="w-full h-full object-cover" />
                         ) : (
-                            user ? user.name.charAt(0) : 'L'
+                            user?.displayName?.charAt(0) || user?.name?.charAt(0) || 'L'
                         )}
                     </div>
-                    <h3 className="text-lg font-bold text-text">{user ? user.name : 'LINE 用戶'}</h3>
-                    <p className="text-sm text-stroke mb-4">{user ? user.dept : '未驗證學生身份'}</p>
-                    {!user ? (
+                    <h3 className="text-lg font-bold text-text">{user?.displayName || user?.name || 'LINE 用戶'}</h3>
+                    
+                    {/* 顯示驗證狀態說明 */}
+                    <p className="text-sm text-stroke mb-4">
+                        {isVerified ? (user?.dept || '暨大學生') : '未驗證學生身份'}
+                    </p>
+                    
+                    {/* 根據 verificationStatus 顯示對應 UI */}
+                    {isVerified ? (
+                        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-star/10 text-star text-xs font-bold">
+                            <Icon name="check" size={12} /> 已驗證學生
+                        </div>
+                    ) : verificationStatus === 'pending' ? (
+                        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 text-gray-500 text-xs font-bold">
+                            <Icon name="time" size={12} /> 審核中
+                        </div>
+                    ) : (
                         <button
                             onClick={() => {
                                 onClose();
@@ -55,10 +74,6 @@ export const UserMenu: React.FC<UserMenuProps> = ({
                         >
                             驗證暨大學生身份
                         </button>
-                    ) : (
-                        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-star/10 text-star text-xs font-bold">
-                            <Icon name="check" size={12} /> 已驗證學生
-                        </div>
                     )}
                 </div>
 
@@ -89,3 +104,4 @@ export const UserMenu: React.FC<UserMenuProps> = ({
 };
 
 export default UserMenu;
+

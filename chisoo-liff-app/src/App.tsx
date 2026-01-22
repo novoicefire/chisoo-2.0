@@ -283,6 +283,7 @@ function App() {
         {showUserMenu && (
           <UserMenu
             user={userData}
+            verificationStatus={verificationStatus}
             onClose={() => setShowUserMenu(false)}
             onOpenVerification={() => setShowVerification(true)}
             onLogout={() => {
