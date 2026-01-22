@@ -281,7 +281,6 @@ function App() {
             onClose={() => setShowVerification(false)}
             status={verificationStatus}
             setStatus={setVerificationStatus}
-            setUserData={setUserData}
             userId={userData?.lineUserId}
           />
         )}

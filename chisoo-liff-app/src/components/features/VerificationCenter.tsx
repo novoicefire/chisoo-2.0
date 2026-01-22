@@ -6,14 +6,13 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import Icon from '../ui/Icon';
-import type { VerificationStatus, UserData } from '../../types';
+import type { VerificationStatus } from '../../types';
 import { uploadVerificationImage, submitVerification } from '../../services/verificationService';
 
 interface VerificationCenterProps {
     onClose: () => void;
     status: VerificationStatus;
     setStatus: (status: VerificationStatus) => void;
-    setUserData: (data: UserData | null) => void;
     userId?: string;  // LINE User ID
 }
 
@@ -21,7 +20,6 @@ export const VerificationCenter: React.FC<VerificationCenterProps> = ({
     onClose,
     status,
     setStatus,
-    setUserData,
     userId,
 }) => {
     const [formData, setFormData] = useState({ name: '', studentId: '', dept: '' });
@@ -93,7 +91,9 @@ export const VerificationCenter: React.FC<VerificationCenterProps> = ({
             }
 
             // 成功：更新狀態
-            setUserData({ ...formData });
+            // 注意：不呼叫 setUserData，避免覆蓋 LINE 用戶資料
+            // 用戶資料（displayName、pictureUrl）已在 LIFF 登入時設置
+            // 真實姓名 (formData.name) 只存在後端 Verification 記錄中，用於管理員審核
             setStatus('pending');
             setFormData({ name: '', studentId: '', dept: '' });
             setFrontImg(null);
