@@ -3,7 +3,7 @@
  * 整合後端 API 進行真實驗證流程
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import Icon from '../ui/Icon';
 import type { VerificationStatus, UserData } from '../../types';
@@ -31,9 +31,6 @@ export const VerificationCenter: React.FC<VerificationCenterProps> = ({
     const [backFile, setBackFile] = useState<File | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    
-    const frontInputRef = useRef<HTMLInputElement>(null);
-    const backInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileChange = (
         e: React.ChangeEvent<HTMLInputElement>,
@@ -260,7 +257,6 @@ export const VerificationCenter: React.FC<VerificationCenterProps> = ({
                                 <div className="grid grid-cols-2 gap-4">
                                     <label 
                                         className="aspect-4/3 rounded-xl border-2 border-dashed border-stroke flex flex-col items-center justify-center cursor-pointer hover:bg-land/50 transition-colors relative overflow-hidden bg-gray-50"
-                                        onClick={() => !isSubmitting && frontInputRef.current?.click()}
                                     >
                                         {frontImg ? (
                                             <img src={frontImg} className="w-full h-full object-cover" alt="正面" />
@@ -271,7 +267,6 @@ export const VerificationCenter: React.FC<VerificationCenterProps> = ({
                                             </>
                                         )}
                                         <input
-                                            ref={frontInputRef}
                                             type="file"
                                             hidden
                                             accept="image/*"
@@ -281,7 +276,6 @@ export const VerificationCenter: React.FC<VerificationCenterProps> = ({
                                     </label>
                                     <label 
                                         className="aspect-4/3 rounded-xl border-2 border-dashed border-stroke flex flex-col items-center justify-center cursor-pointer hover:bg-land/50 transition-colors relative overflow-hidden bg-gray-50"
-                                        onClick={() => !isSubmitting && backInputRef.current?.click()}
                                     >
                                         {backImg ? (
                                             <img src={backImg} className="w-full h-full object-cover" alt="反面" />
@@ -292,7 +286,6 @@ export const VerificationCenter: React.FC<VerificationCenterProps> = ({
                                             </>
                                         )}
                                         <input
-                                            ref={backInputRef}
                                             type="file"
                                             hidden
                                             accept="image/*"
