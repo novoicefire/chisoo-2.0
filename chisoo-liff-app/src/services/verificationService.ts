@@ -119,3 +119,55 @@ export async function checkVerificationStatus(userId: string): Promise<{
     return { status: 'unverified' };
   }
 }
+
+/**
+ * 同步用戶資料（LIFF 登入時呼叫）
+ * 在後端建立或更新用戶記錄，並回傳驗證狀態
+ */
+export async function syncUser(params: {
+  userId: string;
+  displayName?: string;
+  pictureUrl?: string;
+}): Promise<{
+  success: boolean;
+  verificationStatus: VerificationStatusType;
+  user?: {
+    user_id: string;
+    display_name: string;
+    picture_url: string;
+    verification_status: VerificationStatusType;
+    persona_type: string | null;
+  };
+  error?: string;
+}> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/verification/sync-user`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        user_id: params.userId,
+        display_name: params.displayName,
+        picture_url: params.pictureUrl,
+      }),
+    });
+
+    const data = await response.json();
+    
+    if (!data.success) {
+      console.error('[Verification] Sync user error:', data.error);
+      return { success: false, verificationStatus: 'unverified', error: data.error };
+    }
+
+    return {
+      success: true,
+      verificationStatus: data.verification_status as VerificationStatusType,
+      user: data.user,
+    };
+  } catch (error) {
+    console.error('[Verification] Sync user error:', error);
+    return { success: false, verificationStatus: 'unverified', error: '同步失敗，請檢查網路連線' };
+  }
+}
+

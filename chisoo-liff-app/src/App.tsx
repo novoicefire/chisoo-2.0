@@ -16,7 +16,7 @@ import {
 import { OTHER_LOCATIONS } from './data';
 import { fetchHouses, checkApiHealth } from './services/apiService';
 import { initLiff, liffLogout, liffLogin } from './services/liffService';
-import { checkVerificationStatus } from './services/verificationService';
+import { syncUser } from './services/verificationService';
 import { useLocalStorage } from './hooks';
 import type {
   Property,
@@ -81,24 +81,29 @@ function App() {
 
       // 如果已登入且有 Profile，更新使用者資料並同步驗證狀態
       if (state.isLoggedIn && state.profile) {
-        const userId = state.profile.userId;
         
-        // 1. 同步後端驗證狀態
+        // 1. 同步後端用戶資料與驗證狀態
         try {
-          const { status, verification } = await checkVerificationStatus(userId);
-          setVerificationStatus(status);
+          const { verificationStatus, user } = await syncUser({
+            userId: state.profile.userId,
+            displayName: state.profile.displayName,
+            pictureUrl: state.profile.pictureUrl
+          });
+          
+          setVerificationStatus(verificationStatus);
           
           setUserData((prev) => ({
             ...prev,
-            name: verification?.name || prev?.name || state.profile!.displayName,
-            studentId: verification?.student_id || prev?.studentId || '',
-            dept: verification?.dept || prev?.dept || '',
-            lineUserId: userId,
+            name: user?.display_name || prev?.name || state.profile!.displayName,
+            studentId: prev?.studentId || '', // syncUser 目前不回傳 studentId，保留本地或等待驗證資料
+            dept: prev?.dept || '',
+            lineUserId: state.profile!.userId,
             displayName: state.profile!.displayName,
             pictureUrl: state.profile!.pictureUrl,
           }));
         } catch (error) {
-          console.error('[App] Failed to sync verification status:', error);
+          console.error('[App] Failed to sync user status:', error);
+          setVerificationStatus('unverified');
         }
       } else {
         // 如果未登入，確保狀態重置

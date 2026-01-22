@@ -2,6 +2,7 @@
 # handlers/verification.py - 學生身份驗證 API Handler
 # 專案：Chi Soo 租屋小幫手
 # 說明：處理學生驗證申請、圖片上傳、狀態查詢等 API
+#       以及 LIFF 用戶同步功能
 # ============================================================
 
 import os
@@ -13,6 +14,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.models import db_session, User, Verification
 from app.models.verification import VerificationStatus
+from app.services.session_service import SessionService
 
 
 # 建立 Blueprint
@@ -201,3 +203,59 @@ def get_image(filename):
         return send_from_directory(UPLOAD_FOLDER, filename)
     except Exception as e:
         return jsonify({"error": "圖片不存在"}), 404
+
+
+# ============================================================
+# 用戶同步 API（供 LIFF 登入時使用）
+# ============================================================
+
+@verification_bp.route("/sync-user", methods=["POST"])
+def sync_user():
+    """
+    同步用戶資料（LIFF 登入時呼叫）
+    
+    複用 SessionService.get_or_create_user，與 LINE Bot 共用邏輯。
+    
+    Request JSON:
+        {
+            "user_id": "LINE User ID",
+            "display_name": "LINE 暱稱",
+            "picture_url": "LINE 頭像網址"
+        }
+    
+    Response:
+        - 200: { "success": true, "user": {...}, "verification_status": "unverified" }
+        - 400: { "success": false, "error": "錯誤訊息" }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data or not data.get('user_id'):
+            return jsonify({"success": False, "error": "缺少 user_id"}), 400
+        
+        user_id = data['user_id']
+        display_name = data.get('display_name')
+        picture_url = data.get('picture_url')
+        
+        # 使用與 LINE Bot 相同的邏輯建立/更新用戶
+        user = SessionService.get_or_create_user(user_id, display_name, picture_url)
+        
+        # 查詢驗證狀態
+        verification_status = user.verification_status or 'unverified'
+        
+        return jsonify({
+            "success": True,
+            "user": {
+                "user_id": user.user_id,
+                "display_name": user.display_name,
+                "picture_url": user.picture_url,
+                "verification_status": verification_status,
+                "persona_type": user.persona_type
+            },
+            "verification_status": verification_status
+        }), 200
+        
+    except Exception as e:
+        db_session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+

@@ -21,7 +21,7 @@ class SessionService:
     """
     
     @staticmethod
-    def get_or_create_user(user_id: str, display_name: str = None, picture_url: str = None) -> User:
+    def get_or_create_user(user_id: str, display_name: Optional[str] = None, picture_url: Optional[str] = None) -> User:
         """
         取得或建立使用者
         
