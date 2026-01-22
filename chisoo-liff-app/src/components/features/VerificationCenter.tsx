@@ -1,17 +1,20 @@
 /**
  * Chi．Soo 暨宿 - 身份驗證中心元件
+ * 整合後端 API 進行真實驗證流程
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import Icon from '../ui/Icon';
 import type { VerificationStatus, UserData } from '../../types';
+import { uploadVerificationImage, submitVerification } from '../../services/verificationService';
 
 interface VerificationCenterProps {
     onClose: () => void;
     status: VerificationStatus;
     setStatus: (status: VerificationStatus) => void;
     setUserData: (data: UserData | null) => void;
+    userId?: string;  // LINE User ID
 }
 
 export const VerificationCenter: React.FC<VerificationCenterProps> = ({
@@ -19,35 +22,93 @@ export const VerificationCenter: React.FC<VerificationCenterProps> = ({
     status,
     setStatus,
     setUserData,
+    userId,
 }) => {
     const [formData, setFormData] = useState({ name: '', studentId: '', dept: '' });
     const [frontImg, setFrontImg] = useState<string | null>(null);
     const [backImg, setBackImg] = useState<string | null>(null);
+    const [frontFile, setFrontFile] = useState<File | null>(null);
+    const [backFile, setBackFile] = useState<File | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    
+    const frontInputRef = useRef<HTMLInputElement>(null);
+    const backInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileChange = (
         e: React.ChangeEvent<HTMLInputElement>,
-        setter: (url: string | null) => void
+        setPreview: (url: string | null) => void,
+        setFile: (file: File | null) => void
     ) => {
         if (e.target.files && e.target.files[0]) {
-            setter(URL.createObjectURL(e.target.files[0]));
+            const file = e.target.files[0];
+            setFile(file);
+            setPreview(URL.createObjectURL(file));
+            setError(null);
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setError(null);
+
+        // 驗證表單
         if (!formData.name.trim() || !formData.studentId.trim() || !formData.dept.trim()) {
-            alert('請填寫完整資料');
+            setError('請填寫完整資料');
             return;
         }
-        if (!frontImg || !backImg) {
-            alert('請上傳學生證正反面');
+        if (!frontFile || !backFile) {
+            setError('請上傳學生證正反面');
             return;
         }
-        setUserData({ ...formData });
-        setStatus('pending');
-        setFormData({ name: '', studentId: '', dept: '' });
-        setFrontImg(null);
-        setBackImg(null);
+        if (!userId) {
+            setError('請先登入 LINE');
+            return;
+        }
+
+        setIsSubmitting(true);
+
+        try {
+            // 1. 上傳正面圖片
+            const frontResult = await uploadVerificationImage(frontFile);
+            if (!frontResult.success || !frontResult.filename) {
+                throw new Error(frontResult.error || '正面圖片上傳失敗');
+            }
+
+            // 2. 上傳反面圖片
+            const backResult = await uploadVerificationImage(backFile);
+            if (!backResult.success || !backResult.filename) {
+                throw new Error(backResult.error || '反面圖片上傳失敗');
+            }
+
+            // 3. 提交驗證申請
+            const submitResult = await submitVerification({
+                userId,
+                name: formData.name.trim(),
+                studentId: formData.studentId.trim(),
+                dept: formData.dept.trim(),
+                frontImage: frontResult.filename,
+                backImage: backResult.filename,
+            });
+
+            if (!submitResult.success) {
+                throw new Error(submitResult.error || '提交失敗');
+            }
+
+            // 成功：更新狀態
+            setUserData({ ...formData });
+            setStatus('pending');
+            setFormData({ name: '', studentId: '', dept: '' });
+            setFrontImg(null);
+            setBackImg(null);
+            setFrontFile(null);
+            setBackFile(null);
+
+        } catch (err) {
+            setError(err instanceof Error ? err.message : '提交失敗，請稍後再試');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -111,20 +172,44 @@ export const VerificationCenter: React.FC<VerificationCenterProps> = ({
                                 <br />
                                 通常需要 1-2 個工作天。
                             </p>
-                            <div className="mt-8 p-4 border border-dashed border-stroke rounded-xl bg-white/30">
-                                <p className="text-xs text-stroke mb-2">[測試模式] 模擬管理員操作</p>
-                                <button
-                                    onClick={() => setStatus('verified')}
-                                    className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-bold shadow-md"
-                                >
-                                    一鍵通過審核
-                                </button>
+                            <button
+                                onClick={onClose}
+                                className="px-6 py-2 bg-stroke/30 text-text rounded-full font-medium"
+                            >
+                                知道了
+                            </button>
+                        </div>
+                    )}
+
+                    {status === 'rejected' && (
+                        <div className="flex flex-col items-center justify-center py-10 text-center space-y-4">
+                            <div className="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center text-red-500">
+                                <Icon name="close" size={48} strokeWidth={3} />
                             </div>
+                            <h2 className="text-2xl font-bold text-text">驗證未通過</h2>
+                            <p className="text-text/70 px-4">
+                                您的驗證申請未通過審核。
+                                <br />
+                                請確認資料正確後重新提交。
+                            </p>
+                            <button
+                                onClick={() => setStatus('unverified')}
+                                className="px-6 py-2 bg-text text-land rounded-full font-bold"
+                            >
+                                重新申請
+                            </button>
                         </div>
                     )}
 
                     {status === 'unverified' && (
                         <form onSubmit={handleSubmit} className="space-y-6">
+                            {/* 錯誤訊息 */}
+                            {error && (
+                                <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
+                                    ❌ {error}
+                                </div>
+                            )}
+
                             {/* 基本資料 */}
                             <div className="bg-white p-4 rounded-2xl shadow-sm border border-stroke/10 space-y-4">
                                 <h4 className="font-bold text-text mb-2 border-l-4 border-star pl-3">基本資料</h4>
@@ -138,6 +223,7 @@ export const VerificationCenter: React.FC<VerificationCenterProps> = ({
                                             placeholder="王小明"
                                             value={formData.name}
                                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                            disabled={isSubmitting}
                                         />
                                     </div>
                                     <div>
@@ -149,6 +235,7 @@ export const VerificationCenter: React.FC<VerificationCenterProps> = ({
                                             placeholder="s112..."
                                             value={formData.studentId}
                                             onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
+                                            disabled={isSubmitting}
                                         />
                                     </div>
                                     <div>
@@ -160,6 +247,7 @@ export const VerificationCenter: React.FC<VerificationCenterProps> = ({
                                             placeholder="資管三甲"
                                             value={formData.dept}
                                             onChange={(e) => setFormData({ ...formData, dept: e.target.value })}
+                                            disabled={isSubmitting}
                                         />
                                     </div>
                                 </div>
@@ -170,7 +258,10 @@ export const VerificationCenter: React.FC<VerificationCenterProps> = ({
                                 <h4 className="font-bold text-text mb-2 border-l-4 border-star pl-3">學生證上傳</h4>
                                 <p className="text-xs text-text/60 mb-2">請上傳清晰的學生證正反面照片以供查驗。</p>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <label className="aspect-[4/3] rounded-xl border-2 border-dashed border-stroke flex flex-col items-center justify-center cursor-pointer hover:bg-land/50 transition-colors relative overflow-hidden bg-gray-50">
+                                    <label 
+                                        className="aspect-4/3 rounded-xl border-2 border-dashed border-stroke flex flex-col items-center justify-center cursor-pointer hover:bg-land/50 transition-colors relative overflow-hidden bg-gray-50"
+                                        onClick={() => !isSubmitting && frontInputRef.current?.click()}
+                                    >
                                         {frontImg ? (
                                             <img src={frontImg} className="w-full h-full object-cover" alt="正面" />
                                         ) : (
@@ -180,13 +271,18 @@ export const VerificationCenter: React.FC<VerificationCenterProps> = ({
                                             </>
                                         )}
                                         <input
+                                            ref={frontInputRef}
                                             type="file"
                                             hidden
                                             accept="image/*"
-                                            onChange={(e) => handleFileChange(e, setFrontImg)}
+                                            onChange={(e) => handleFileChange(e, setFrontImg, setFrontFile)}
+                                            disabled={isSubmitting}
                                         />
                                     </label>
-                                    <label className="aspect-[4/3] rounded-xl border-2 border-dashed border-stroke flex flex-col items-center justify-center cursor-pointer hover:bg-land/50 transition-colors relative overflow-hidden bg-gray-50">
+                                    <label 
+                                        className="aspect-4/3 rounded-xl border-2 border-dashed border-stroke flex flex-col items-center justify-center cursor-pointer hover:bg-land/50 transition-colors relative overflow-hidden bg-gray-50"
+                                        onClick={() => !isSubmitting && backInputRef.current?.click()}
+                                    >
                                         {backImg ? (
                                             <img src={backImg} className="w-full h-full object-cover" alt="反面" />
                                         ) : (
@@ -196,10 +292,12 @@ export const VerificationCenter: React.FC<VerificationCenterProps> = ({
                                             </>
                                         )}
                                         <input
+                                            ref={backInputRef}
                                             type="file"
                                             hidden
                                             accept="image/*"
-                                            onChange={(e) => handleFileChange(e, setBackImg)}
+                                            onChange={(e) => handleFileChange(e, setBackImg, setBackFile)}
+                                            disabled={isSubmitting}
                                         />
                                     </label>
                                 </div>
@@ -209,9 +307,19 @@ export const VerificationCenter: React.FC<VerificationCenterProps> = ({
                             <div className="pt-2 pb-safe-bottom">
                                 <button
                                     type="submit"
-                                    className="w-full h-14 bg-text text-land rounded-2xl font-bold text-lg shadow-xl active:scale-95 transition-transform flex items-center justify-center gap-2"
+                                    disabled={isSubmitting}
+                                    className="w-full h-14 bg-text text-land rounded-2xl font-bold text-lg shadow-xl active:scale-95 transition-transform flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    提交審核 <Icon name="check" size={20} />
+                                    {isSubmitting ? (
+                                        <>
+                                            <div className="w-5 h-5 border-2 border-land border-t-transparent rounded-full animate-spin" />
+                                            提交中...
+                                        </>
+                                    ) : (
+                                        <>
+                                            提交審核 <Icon name="check" size={20} />
+                                        </>
+                                    )}
                                 </button>
                             </div>
                         </form>

@@ -41,6 +41,7 @@ def init_db(app: Flask) -> None:
     from app.models.persona import Persona
     from app.models.favorite import Favorite
     from app.models.ai_log import AILog
+    from app.models.verification import Verification
     
     # 建立所有表格
     Base.metadata.create_all(bind=engine)
@@ -73,6 +74,7 @@ from app.models.review import Review
 from app.models.persona import Persona
 from app.models.favorite import Favorite
 from app.models.ai_log import AILog
+from app.models.verification import Verification
 
 __all__ = [
     "Base",
@@ -87,4 +89,5 @@ __all__ = [
     "Persona",
     "Favorite",
     "AILog",
+    "Verification",
 ]

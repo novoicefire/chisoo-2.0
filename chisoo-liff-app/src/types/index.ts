@@ -86,7 +86,7 @@ export interface FavoriteItem extends Property {
 }
 
 /** 身份驗證狀態 */
-export type VerificationStatus = 'unverified' | 'pending' | 'verified';
+export type VerificationStatus = 'unverified' | 'pending' | 'verified' | 'rejected';
 
 /** 使用者資料 (結合 LINE Profile 與學生驗證) */
 export interface UserData {

@@ -8,7 +8,7 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from flask import Flask, render_template_string, request, redirect, url_for, flash
+from flask import Flask, render_template_string, request, redirect, url_for, flash, send_from_directory
 from app.models import db_session, Base, engine
 from app.models.user import User
 from app.models.session import UserSession
@@ -16,6 +16,7 @@ from app.models.house import House
 from app.models.persona import Persona
 from app.models.review import Review
 from app.models.ai_log import AILog
+from app.models.verification import Verification, VerificationStatus
 
 app = Flask(__name__)
 app.secret_key = "admin-secret-key"
@@ -117,8 +118,11 @@ ADMIN_TEMPLATE = """
             font-size: 12px;
             font-weight: bold;
         }
-        .badge-idle { background: #d1fae5; color: #059669; }
         .badge-testing { background: #fef3c7; color: #d97706; }
+        .badge-pending { background: #fef3c7; color: #d97706; }
+        .badge-verified { background: #d1fae5; color: #059669; }
+        .badge-rejected { background: #fee2e2; color: #dc2626; }
+        .badge-unverified { background: #e5e7eb; color: #6b7280; }
     </style>
 </head>
 <body>
@@ -157,6 +161,10 @@ ADMIN_TEMPLATE = """
                     <div class="number">{{ persona_count }}</div>
                     <div class="label">人物誌</div>
                 </div>
+                <div class="stat-box" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                    <div class="number">{{ pending_count }}</div>
+                    <div class="label">待審核</div>
+                </div>
             </div>
         </div>
         
@@ -189,7 +197,8 @@ ADMIN_TEMPLATE = """
                         <th>頭像</th>
                         <th>暱稱</th>
                         <th>人格類型</th>
-                        <th>狀態</th>
+                        <th>測驗狀態</th>
+                        <th>驗證狀態</th>
                         <th>操作</th>
                     </tr>
                 </thead>
@@ -214,12 +223,22 @@ ADMIN_TEMPLATE = """
                             {% endif %}
                         </td>
                         <td>
+                            <span class="badge badge-{{ user.verification_status or 'unverified' }}">{{ user.verification_status or 'Unverified' }}</span>
+                        </td>
+                        <td>
                             <a href="/user/{{ user.user_id }}" class="btn btn-primary" style="padding: 5px 10px; margin-right: 5px;">詳情</a>
-                            <form action="/reset-user/{{ user.user_id }}" method="POST" style="display:inline;">
+                            <form action="/reset-user/{{ user.user_id }}" method="POST" style="display:inline;" title="重置測驗狀態">
                                 <button type="submit" class="btn btn-warning" style="padding: 5px 10px;">
-                                    重置
+                                    重置測驗
                                 </button>
                             </form>
+                            {% if user.verification_status != 'unverified' %}
+                            <form action="/reset-verification/{{ user.user_id }}" method="POST" style="display:inline; margin-left: 5px;" title="重置驗證狀態">
+                                <button type="submit" class="btn btn-danger" style="padding: 5px 10px; background-color: #6366f1;">
+                                    重置驗證
+                                </button>
+                            </form>
+                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
@@ -227,6 +246,41 @@ ADMIN_TEMPLATE = """
             </table>
             {% else %}
             <p style="color: #666;">目前沒有使用者</p>
+            {% endif %}
+        </div>
+        
+        <!-- 身份驗證審核 -->
+        <div class="card">
+            <h2>🎓 身份驗證審核 <a href="/verifications" class="btn btn-primary" style="float: right; padding: 5px 15px;">查看全部</a></h2>
+            {% if pending_verifications %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>提交時間</th>
+                        <th>姓名</th>
+                        <th>學號</th>
+                        <th>系級</th>
+                        <th>狀態</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for v in pending_verifications %}
+                    <tr>
+                        <td>{{ v.submitted_at.strftime('%m/%d %H:%M') if v.submitted_at else '-' }}</td>
+                        <td>{{ v.name }}</td>
+                        <td><code>{{ v.student_id }}</code></td>
+                        <td>{{ v.dept }}</td>
+                        <td><span class="badge badge-{{ v.status }}">{{ v.status }}</span></td>
+                        <td>
+                            <a href="/verification/{{ v.id }}" class="btn btn-primary" style="padding: 5px 10px;">審核</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p style="color: #666;">目前沒有待審核的驗證申請 ✅</p>
             {% endif %}
         </div>
         
@@ -279,6 +333,11 @@ def index():
         session = db_session.query(UserSession).filter_by(user_id=user.user_id).first()
         users_with_sessions.append((user, session))
     
+    # 查詢待審核的驗證申請
+    pending_verifications = db_session.query(Verification).filter_by(
+        status=VerificationStatus.PENDING
+    ).order_by(Verification.submitted_at.desc()).limit(10).all()
+    
     return render_template_string(
         ADMIN_TEMPLATE,
         user_count=db_session.query(User).count(),
@@ -286,8 +345,10 @@ def index():
         testing_count=db_session.query(UserSession).filter_by(status="TESTING").count(),
         house_count=db_session.query(House).count(),
         persona_count=db_session.query(Persona).count(),
+        pending_count=db_session.query(Verification).filter_by(status=VerificationStatus.PENDING).count(),
         users=users_with_sessions,
-        personas=db_session.query(Persona).all()
+        personas=db_session.query(Persona).all(),
+        pending_verifications=pending_verifications
     )
 
 @app.route("/reset-sessions", methods=["POST"])
@@ -798,6 +859,252 @@ def persona_delete(persona_id):
         db_session.delete(persona)
         db_session.commit()
         flash(f"✅ 已刪除：{name}")
+    return redirect(url_for("index"))
+
+
+# 審核詳情頁模板
+VERIFICATION_DETAIL_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>審核詳情 - Chi Soo 管理後台</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { color: white; text-align: center; margin-bottom: 30px; }
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .card h2 { color: #333; margin-bottom: 15px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+            transition: transform 0.2s;
+        }
+        .btn:hover { transform: translateY(-2px); }
+        .btn-success { background: #10b981; color: white; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-secondary { background: #6b7280; color: white; }
+        .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px; }
+        .info-item { padding: 15px; background: #f8f9fa; border-radius: 8px; }
+        .info-item label { font-weight: 600; color: #666; font-size: 12px; display: block; margin-bottom: 5px; }
+        .info-item span { font-size: 16px; color: #333; }
+        .image-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+        .image-card { text-align: center; }
+        .image-card img { max-width: 100%; border-radius: 10px; border: 2px solid #ddd; }
+        .image-card p { margin-top: 10px; font-weight: 600; color: #666; }
+        .actions { display: flex; gap: 15px; margin-top: 20px; justify-content: center; }
+        .flash { padding: 15px; border-radius: 8px; margin-bottom: 20px; background: #10b981; color: white; }
+        .badge { padding: 4px 12px; border-radius: 4px; font-size: 14px; font-weight: bold; }
+        .badge-pending { background: #fef3c7; color: #d97706; }
+        .badge-verified { background: #d1fae5; color: #059669; }
+        .badge-rejected { background: #fee2e2; color: #dc2626; }
+        textarea { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; min-height: 80px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎓 審核詳情</h1>
+        
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        {% for message in messages %}
+        <div class="flash">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+        
+        <div class="card">
+            <h2>👤 學生資訊 <span class="badge badge-{{ v.status }}" style="float: right;">{{ v.status }}</span></h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <label>姓名</label>
+                    <span>{{ v.name }}</span>
+                </div>
+                <div class="info-item">
+                    <label>學號</label>
+                    <span><code>{{ v.student_id }}</code></span>
+                </div>
+                <div class="info-item">
+                    <label>系級</label>
+                    <span>{{ v.dept }}</span>
+                </div>
+                <div class="info-item">
+                    <label>提交時間</label>
+                    <span>{{ v.submitted_at.strftime('%Y-%m-%d %H:%M') if v.submitted_at else '-' }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>📷 學生證照片</h2>
+            <div class="image-grid">
+                <div class="image-card">
+                    <img src="/uploads/verifications/{{ v.front_image_path }}" alt="正面" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 400 300%22><rect fill=%22%23eee%22 width=%22400%22 height=%22300%22/><text x=%22200%22 y=%22150%22 text-anchor=%22middle%22 fill=%22%23999%22>圖片載入失敗</text></svg>'">
+                    <p>正面（有照片）</p>
+                </div>
+                <div class="image-card">
+                    <img src="/uploads/verifications/{{ v.back_image_path }}" alt="反面" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 400 300%22><rect fill=%22%23eee%22 width=%22400%22 height=%22300%22/><text x=%22200%22 y=%22150%22 text-anchor=%22middle%22 fill=%22%23999%22>圖片載入失敗</text></svg>'">
+                    <p>反面（註冊章）</p>
+                </div>
+            </div>
+        </div>
+        
+        {% if v.status == 'pending' %}
+        <div class="card">
+            <h2>⚙️ 審核操作</h2>
+            <form action="/verification/{{ v.id }}/approve" method="POST" style="margin-bottom: 15px;">
+                <button type="submit" class="btn btn-success" onclick="return confirm('確定通過此驗證申請？')">
+                    ✅ 通過審核
+                </button>
+            </form>
+            <form action="/verification/{{ v.id }}/reject" method="POST">
+                <label style="font-weight: 600; margin-bottom: 8px; display: block;">拒絕原因（選填）</label>
+                <textarea name="note" placeholder="例：照片模糊、資料不符等..."></textarea>
+                <button type="submit" class="btn btn-danger" style="margin-top: 10px;" onclick="return confirm('確定拒絕此驗證申請？')">
+                    ❌ 拒絕審核
+                </button>
+            </form>
+        </div>
+        {% elif v.reviewer_note %}
+        <div class="card">
+            <h2>📝 審核備註</h2>
+            <p>{{ v.reviewer_note }}</p>
+            <p style="color: #666; margin-top: 10px;">審核時間：{{ v.reviewed_at.strftime('%Y-%m-%d %H:%M') if v.reviewed_at else '-' }}</p>
+        </div>
+        {% endif %}
+        
+        <div style="text-align: center; margin-top: 20px;">
+            <a href="/" class="btn btn-secondary">← 返回首頁</a>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+
+@app.route("/verification/<int:verification_id>")
+def verification_detail(verification_id):
+    """審核詳情頁"""
+    v = db_session.query(Verification).filter_by(id=verification_id).first()
+    if not v:
+        flash("❌ 驗證申請不存在")
+        return redirect(url_for("index"))
+    
+    return render_template_string(VERIFICATION_DETAIL_TEMPLATE, v=v)
+
+
+@app.route("/verification/<int:verification_id>/approve", methods=["POST"])
+def verification_approve(verification_id):
+    """通過驗證"""
+    from datetime import datetime
+    
+    v = db_session.query(Verification).filter_by(id=verification_id).first()
+    if not v:
+        flash("❌ 驗證申請不存在")
+        return redirect(url_for("index"))
+    
+    # 更新驗證狀態
+    v.status = VerificationStatus.VERIFIED
+    v.reviewed_at = datetime.utcnow()
+    
+    # 更新使用者驗證狀態
+    user = db_session.query(User).filter_by(user_id=v.user_id).first()
+    if user:
+        user.verification_status = VerificationStatus.VERIFIED
+    
+    db_session.commit()
+    flash(f"✅ 已通過 {v.name} 的驗證申請")
+    return redirect(url_for("index"))
+
+
+@app.route("/verification/<int:verification_id>/reject", methods=["POST"])
+def verification_reject(verification_id):
+    """拒絕驗證"""
+    from datetime import datetime
+    
+    v = db_session.query(Verification).filter_by(id=verification_id).first()
+    if not v:
+        flash("❌ 驗證申請不存在")
+        return redirect(url_for("index"))
+    
+    # 更新驗證狀態
+    v.status = VerificationStatus.REJECTED
+    v.reviewed_at = datetime.utcnow()
+    v.reviewer_note = request.form.get("note", "").strip()
+    
+    # 更新使用者驗證狀態
+    user = db_session.query(User).filter_by(user_id=v.user_id).first()
+    if user:
+        user.verification_status = VerificationStatus.REJECTED
+    
+    db_session.commit()
+    flash(f"❌ 已拒絕 {v.name} 的驗證申請")
+    return redirect(url_for("index"))
+
+
+@app.route("/uploads/verifications/<filename>")
+def serve_verification_image(filename):
+    """提供驗證圖片檔案"""
+    import os
+    upload_folder = os.path.join(os.getcwd(), "uploads", "verifications")
+    return send_from_directory(upload_folder, filename)
+
+
+@app.route("/reset-verification/<user_id>", methods=["POST"])
+def reset_verification(user_id):
+    """重置使用者驗證狀態"""
+    import os
+    
+    # 1. 查找使用者
+    user = db_session.query(User).filter_by(user_id=user_id).first()
+    if not user:
+        flash(f"❌ 使用者 {user_id} 不存在")
+        return redirect(url_for("index"))
+        
+    # 2. 刪除驗證紀錄
+    verifications = db_session.query(Verification).filter_by(user_id=user_id).all()
+    upload_folder = os.path.join(os.getcwd(), "uploads", "verifications")
+    
+    count = 0
+    for v in verifications:
+        # 嘗試刪除圖片檔案
+        if v.front_image_path:
+            try:
+                os.remove(os.path.join(upload_folder, v.front_image_path))
+            except OSError:
+                pass
+        if v.back_image_path:
+            try:
+                os.remove(os.path.join(upload_folder, v.back_image_path))
+            except OSError:
+                pass
+        
+        db_session.delete(v)
+        count += 1
+    
+    # 3. 重置使用者狀態
+    user.verification_status = 'unverified'
+    db_session.commit()
+    
+    flash(f"✅ 已重置 {user.display_name or user_id} 的驗證狀態 (刪除 {count} 筆申請紀錄)")
     return redirect(url_for("index"))
 
 

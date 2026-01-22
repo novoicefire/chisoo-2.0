@@ -13,16 +13,16 @@ import {
   VerificationCenter,
   UserMenu,
 } from './components';
-import { COFFEE_SHOPS, OTHER_LOCATIONS } from './data';
+import { OTHER_LOCATIONS } from './data';
 import { fetchHouses, checkApiHealth } from './services/apiService';
 import { initLiff, liffLogout, liffLogin } from './services/liffService';
+import { checkVerificationStatus } from './services/verificationService';
 import { useLocalStorage } from './hooks';
 import type {
   Property,
   FavoriteItem,
   VerificationStatus,
   UserData,
-  AppMode,
   SheetState,
 } from './types';
 import { COLORS } from './types';
@@ -32,17 +32,13 @@ function App() {
   // 狀態管理
   const [selectedProp, setSelectedProp] = useState<Property | null>(null);
   const [sheetState, setSheetState] = useState<SheetState>('peek');
-  const [verificationStatus, setVerificationStatus] = useLocalStorage<VerificationStatus>(
-    'verificationStatus',
-    'unverified'
-  );
+  // 安全性修正：驗證狀態不應持久化，每次開啟 App 預設未驗證，等待伺服器確認
+  const [verificationStatus, setVerificationStatus] = useState<VerificationStatus>('unverified');
   const [showVerification, setShowVerification] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showSideMenu, setShowSideMenu] = useState(false);
   const deepLinkProcessed = useRef(false);
   const [userData, setUserData] = useLocalStorage<UserData | null>('userData', null);
-  const [appMode, setAppMode] = useState<AppMode>('housing');
-  const [showSpecials, setShowSpecials] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
   const [favoritesTab, setFavoritesTab] = useState<'homes' | 'life'>('homes');
@@ -80,22 +76,36 @@ function App() {
 
   // 初始化 LIFF
   useEffect(() => {
-    initLiff().then((state) => {
-
+    initLiff().then(async (state) => {
       console.info('[LIFF] Initialized:', state.isLoggedIn ? 'logged in' : 'not logged in', state.isInClient ? '(in LINE)' : '(browser)');
 
-      // 如果已登入且有 Profile，更新使用者資料
+      // 如果已登入且有 Profile，更新使用者資料並同步驗證狀態
       if (state.isLoggedIn && state.profile) {
-        setUserData((prev) => ({
-          ...prev,
-          name: prev?.name || state.profile!.displayName,
-          studentId: prev?.studentId || '',
-          dept: prev?.dept || '',
-          lineUserId: state.profile!.userId,
-          displayName: state.profile!.displayName,
-          pictureUrl: state.profile!.pictureUrl,
-        }));
+        const userId = state.profile.userId;
+        
+        // 1. 同步後端驗證狀態
+        try {
+          const { status, verification } = await checkVerificationStatus(userId);
+          setVerificationStatus(status);
+          
+          setUserData((prev) => ({
+            ...prev,
+            name: verification?.name || prev?.name || state.profile!.displayName,
+            studentId: verification?.student_id || prev?.studentId || '',
+            dept: verification?.dept || prev?.dept || '',
+            lineUserId: userId,
+            displayName: state.profile!.displayName,
+            pictureUrl: state.profile!.pictureUrl,
+          }));
+        } catch (error) {
+          console.error('[App] Failed to sync verification status:', error);
+        }
       } else {
+        // 如果未登入，確保狀態重置
+        if (!state.isLoggedIn) {
+          setVerificationStatus('unverified');
+        }
+
         // 如果未登入，且沒有本地使用者資料，則執行登入
         if (!state.isLoggedIn && !userData) {
           liffLogin();
@@ -120,9 +130,6 @@ function App() {
       const fromHouses = houses.find((p: Property) => String(p.id) === id);
       if (fromHouses) return { ...fromHouses, type: 'housing' as const };
 
-      const fromCoffee = COFFEE_SHOPS.find((c) => String(c.id) === id);
-      if (fromCoffee) return fromCoffee;
-
       const fromOther = OTHER_LOCATIONS.find((o) => String(o.id) === id);
       if (fromOther) return fromOther;
 
@@ -134,14 +141,7 @@ function App() {
     if (targetProperty) {
       setSelectedProp(targetProperty);
       setSheetState('half');
-      setShowSpecials(false);
       setShowAbout(false);
-
-      if (targetProperty.type === 'housing') {
-        setAppMode('housing');
-      } else if (String(targetProperty.id).startsWith('c')) {
-        setAppMode('coffee');
-      }
     } else {
       console.warn(`[Deep Linking] 找不到 ID 為 ${propertyId} 的房源`);
     }
@@ -186,30 +186,26 @@ function App() {
     const handlePopState = () => {
       if (sheetState === 'full') {
         setSheetState('half');
-      } else if (selectedProp || showSpecials || showAbout || showFavorites) {
+      } else if (selectedProp || showAbout || showFavorites) {
         setSelectedProp(null);
-        setShowSpecials(false);
         setShowAbout(false);
         setShowFavorites(false);
         setSheetState('peek');
       }
     };
 
-    if (sheetState === 'full' || selectedProp || showSpecials || showAbout || showFavorites) {
+    if (sheetState === 'full' || selectedProp || showAbout || showFavorites) {
       window.history.pushState({ panel: 'open' }, '');
     }
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [sheetState, selectedProp, showSpecials, showAbout, showFavorites]);
-
-  const displayProperties = appMode === 'coffee' ? COFFEE_SHOPS : houses;
+  }, [sheetState, selectedProp, showAbout, showFavorites]);
 
   // 處理地圖標記點擊
   const handleMapSelect = (property: Property) => {
     setSelectedProp(property);
     setSheetState('half');
-    setShowSpecials(false);
     setShowAbout(false);
   };
 
@@ -220,10 +216,9 @@ function App() {
     >
       {/* Mapbox 真實地圖 */}
       <MapView
-        properties={displayProperties}
+        properties={houses}
         selectedId={selectedProp?.id ?? null}
         onSelect={handleMapSelect}
-        appMode={appMode}
         disabled={sheetState === 'full'}
       />
 
@@ -242,7 +237,7 @@ function App() {
             </button>
             <input
               type="text"
-              placeholder={appMode === 'coffee' ? '搜尋咖啡廳、插座...' : '搜尋地標或路名...'}
+              placeholder="搜尋地標或路名..."
               className="flex-1 bg-transparent outline-none text-base placeholder-stroke text-text"
               onFocus={() => setSheetState('peek')}
             />
@@ -272,9 +267,7 @@ function App() {
           <SideMenu
             isOpen={showSideMenu}
             onClose={() => setShowSideMenu(false)}
-            setAppMode={setAppMode}
             setSheetState={setSheetState}
-            setShowSpecials={setShowSpecials}
             setShowAbout={setShowAbout}
           />
         )}
@@ -284,6 +277,7 @@ function App() {
             status={verificationStatus}
             setStatus={setVerificationStatus}
             setUserData={setUserData}
+            userId={userData?.lineUserId}
           />
         )}
         {showUserMenu && (
@@ -325,10 +319,6 @@ function App() {
         }}
         status={verificationStatus}
         openVerification={() => setShowVerification(true)}
-        appMode={appMode}
-        setAppMode={setAppMode}
-        showSpecials={showSpecials}
-        setShowSpecials={setShowSpecials}
         showAbout={showAbout}
         setShowAbout={setShowAbout}
         showFavorites={showFavorites}
@@ -338,7 +328,7 @@ function App() {
         isFavorite={isFavorite}
         toggleFavorite={toggleFavorite}
         favoritesTab={favoritesTab}
-        currentList={displayProperties}
+        currentList={houses}
         setToast={setToast}
       />
 

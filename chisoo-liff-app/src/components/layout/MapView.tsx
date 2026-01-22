@@ -7,15 +7,13 @@ import React, { useCallback } from 'react';
 import Map, { Marker, NavigationControl, GeolocateControl } from 'react-map-gl';
 import type { MapRef } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import Icon from '../ui/Icon';
-import type { Property, AppMode } from '../../types';
+import type { Property } from '../../types';
 import { MAP_CENTER, COLORS } from '../../types';
 
 interface MapViewProps {
     properties: Property[];
     selectedId: string | number | null;
     onSelect: (property: Property) => void;
-    appMode: AppMode;
     disabled?: boolean;
 }
 
@@ -23,7 +21,6 @@ export const MapView: React.FC<MapViewProps> = ({
     properties,
     selectedId,
     onSelect,
-    appMode,
     disabled = false,
 }) => {
     const mapRef = React.useRef<MapRef>(null);
@@ -78,32 +75,21 @@ export const MapView: React.FC<MapViewProps> = ({
                             className={`cursor-pointer transition-transform duration-200 ${selectedId === property.id ? 'scale-125 z-20' : 'hover:scale-110'
                                 }`}
                         >
-                            {appMode === 'coffee' ? (
-                                <div
-                                    className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg border-2 transition-colors ${selectedId === property.id
-                                        ? 'bg-star border-white'
-                                        : 'bg-text border-white'
-                                        }`}
-                                >
-                                    <Icon name="coffee" size={20} className="text-white" color="white" />
-                                </div>
-                            ) : (
-                                <svg
-                                    width="40"
-                                    height="48"
-                                    viewBox="0 0 40 48"
-                                    fill="none"
-                                    className="drop-shadow-[0_4px_6px_rgba(78,60,46,0.4)]"
-                                >
-                                    <path
-                                        d="M20 0C8.9543 0 0 8.9543 0 20C0 31.0457 20 48 20 48C20 48 40 31.0457 40 20C40 8.9543 31.0457 0 20 0Z"
-                                        fill={selectedId === property.id ? COLORS.star : COLORS.text}
-                                        stroke={selectedId === property.id ? COLORS.stroke : 'none'}
-                                        strokeWidth={selectedId === property.id ? 2 : 0}
-                                    />
-                                    <circle cx="20" cy="20" r="8" fill="white" />
-                                </svg>
-                            )}
+                            <svg
+                                width="40"
+                                height="48"
+                                viewBox="0 0 40 48"
+                                fill="none"
+                                className="drop-shadow-[0_4px_6px_rgba(78,60,46,0.4)]"
+                            >
+                                <path
+                                    d="M20 0C8.9543 0 0 8.9543 0 20C0 31.0457 20 48 20 48C20 48 40 31.0457 40 20C40 8.9543 31.0457 0 20 0Z"
+                                    fill={selectedId === property.id ? COLORS.star : COLORS.text}
+                                    stroke={selectedId === property.id ? COLORS.stroke : 'none'}
+                                    strokeWidth={selectedId === property.id ? 2 : 0}
+                                />
+                                <circle cx="20" cy="20" r="8" fill="white" />
+                            </svg>
                         </div>
                     </Marker>
                 ))}

@@ -5,23 +5,19 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Icon from '../ui/Icon';
-import type { AppMode, SheetState } from '../../types';
+import type { SheetState } from '../../types';
 
 interface SideMenuProps {
     isOpen: boolean;
     onClose: () => void;
-    setAppMode: (mode: AppMode) => void;
     setSheetState: (state: SheetState) => void;
-    setShowSpecials: (show: boolean) => void;
     setShowAbout: (show: boolean) => void;
 }
 
 export const SideMenu: React.FC<SideMenuProps> = ({
     isOpen,
     onClose,
-    setAppMode,
     setSheetState,
-    setShowSpecials,
     setShowAbout,
 }) => {
     return (
@@ -64,37 +60,10 @@ export const SideMenu: React.FC<SideMenuProps> = ({
                                     探索生活
                                 </h4>
                                 <div className="space-y-1">
-                                    <button
-                                        onClick={() => {
-                                            setShowSpecials(true);
-                                            setSheetState('half');
-                                            onClose();
-                                        }}
-                                        className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/60 text-text transition-colors text-left"
-                                    >
-                                        <Icon name="star" size={20} className="opacity-70" />
-                                        <span className="font-medium text-sm">本月精選特輯</span>
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setAppMode('coffee');
-                                            onClose();
-                                        }}
-                                        className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/60 text-text transition-colors text-left"
-                                    >
-                                        <Icon name="coffee" size={20} className="opacity-70" />
-                                        <span className="font-medium text-sm">讀書咖啡地圖</span>
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setAppMode('housing');
-                                            onClose();
-                                        }}
-                                        className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/60 text-text transition-colors text-left"
-                                    >
-                                        <Icon name="mapPin" size={20} className="opacity-70" />
-                                        <span className="font-medium text-sm">找房模式 (預設)</span>
-                                    </button>
+                                    {/* 暫時移除咖啡廳和精選特輯功能 */}
+                                    <div className="px-3 py-2 text-xs text-stroke/60">
+                                        更多功能開發中...
+                                    </div>
                                 </div>
                             </div>
 
@@ -108,7 +77,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({
                                         href="https://ncnu-super-assistant.vercel.app/"
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/60 text-text transition-colors text-left block"
+                                        className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/60 text-text transition-colors text-left"
                                     >
                                         <Icon name="robot" size={20} className="opacity-70" />
                                         <span className="font-medium text-sm">暨大生超級助理</span>
@@ -117,7 +86,7 @@ export const SideMenu: React.FC<SideMenuProps> = ({
                                         href="https://www.taiwanbus.tw/eBUSPage/Query/QueryResult.aspx?rno=0706B&rn=1624261592512&lan=C"
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/60 text-text transition-colors text-left block"
+                                        className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/60 text-text transition-colors text-left"
                                     >
                                         <Icon name="bus" size={20} className="opacity-70" />
                                         <span className="font-medium text-sm">校車/公車動態</span>
