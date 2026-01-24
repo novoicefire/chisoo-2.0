@@ -136,6 +136,8 @@ def get_favorites():
 @api_bp.route("/favorites", methods=["POST"])
 def add_favorite():
     """新增收藏"""
+    from app.services.session_service import SessionService
+    
     user_id = request.headers.get("X-User-Id")
     
     if not user_id:
@@ -146,6 +148,9 @@ def add_favorite():
     
     if not house_id:
         return jsonify({"error": "house_id is required"}), 400
+    
+    # 確保使用者存在（解決外鍵約束問題）
+    SessionService.get_or_create_user(user_id)
     
     # 檢查房源是否存在
     house = db_session.query(House).filter_by(house_id=house_id).first()

@@ -144,3 +144,100 @@ export async function checkApiHealth(): Promise<boolean> {
         return false;
     }
 }
+
+// ============================================================
+// 收藏 API
+// ============================================================
+
+/**
+ * API 回傳的收藏項目格式
+ */
+export interface FavoriteApiItem {
+    favorite_id: number;
+    house: HouseApiResponse;
+    created_at: string;
+}
+
+/**
+ * 取得使用者收藏列表
+ */
+export async function fetchFavorites(userId: string): Promise<{ favorites: FavoriteApiItem[]; total: number }> {
+    try {
+        const response = await fetch(`${API_BASE}/favorites`, {
+            headers: { 'X-User-Id': userId }
+        });
+        if (!response.ok) {
+            console.error('[API] Failed to fetch favorites:', response.status);
+            return { favorites: [], total: 0 };
+        }
+        return await response.json();
+    } catch (error) {
+        console.error('[API] fetchFavorites error:', error);
+        return { favorites: [], total: 0 };
+    }
+}
+
+/**
+ * 新增收藏
+ */
+export async function addFavorite(userId: string, houseId: number): Promise<{ success: boolean; favoriteId?: number; error?: string }> {
+    try {
+        const response = await fetch(`${API_BASE}/favorites`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-User-Id': userId
+            },
+            body: JSON.stringify({ house_id: houseId })
+        });
+        
+        const data = await response.json();
+        
+        if (response.status === 201) {
+            return { success: true, favoriteId: data.favorite_id };
+        } else if (response.status === 409) {
+            // 已經收藏過
+            return { success: true, favoriteId: data.favorite_id };
+        } else {
+            return { success: false, error: data.error };
+        }
+    } catch (error) {
+        console.error('[API] addFavorite error:', error);
+        return { success: false, error: 'Network error' };
+    }
+}
+
+/**
+ * 刪除收藏
+ */
+export async function removeFavorite(userId: string, favoriteId: number): Promise<{ success: boolean; error?: string }> {
+    try {
+        const response = await fetch(`${API_BASE}/favorites/${favoriteId}`, {
+            method: 'DELETE',
+            headers: { 'X-User-Id': userId }
+        });
+        
+        if (response.ok) {
+            return { success: true };
+        } else {
+            const data = await response.json();
+            return { success: false, error: data.error };
+        }
+    } catch (error) {
+        console.error('[API] removeFavorite error:', error);
+        return { success: false, error: 'Network error' };
+    }
+}
+
+/**
+ * 將 API 收藏轉換為前端 FavoriteItem 格式
+ */
+export function transformFavoriteToProperty(fav: FavoriteApiItem): Property & { favoriteId: number } {
+    return {
+        ...transformHouse(fav.house),
+        favoriteId: fav.favorite_id,
+        status: 'saved',
+        addedAt: fav.created_at
+    } as Property & { favoriteId: number };
+}
+

@@ -14,7 +14,7 @@ import {
   UserMenu,
 } from './components';
 import { OTHER_LOCATIONS } from './data';
-import { fetchHouses, checkApiHealth } from './services/apiService';
+import { fetchHouses, checkApiHealth, fetchFavorites, addFavorite, removeFavorite, transformFavoriteToProperty } from './services/apiService';
 import { initLiff, liffLogout, liffLogin } from './services/liffService';
 import { syncUser } from './services/verificationService';
 import { useLocalStorage } from './hooks';
@@ -43,7 +43,8 @@ function App() {
   const [showFavorites, setShowFavorites] = useState(false);
   const [favoritesTab, setFavoritesTab] = useState<'homes' | 'life'>('homes');
   const [toast, setToast] = useState<string | null>(null);
-  const [favorites, setFavorites] = useLocalStorage<FavoriteItem[]>('favorites', []);
+  const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
+  const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [houses, setHouses] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [apiAvailable, setApiAvailable] = useState(false);
@@ -101,6 +102,22 @@ function App() {
             displayName: state.profile!.displayName,
             pictureUrl: state.profile!.pictureUrl,
           }));
+          
+          // 載入收藏列表
+          setFavoritesLoading(true);
+          try {
+            const { favorites: favList } = await fetchFavorites(state.profile.userId);
+            const transformedFavs = favList.map((fav) => ({
+              ...transformFavoriteToProperty(fav),
+              status: 'saved' as const,
+              addedAt: fav.created_at,
+            }));
+            setFavorites(transformedFavs);
+          } catch (favError) {
+            console.error('[App] Failed to load favorites:', favError);
+          } finally {
+            setFavoritesLoading(false);
+          }
         } catch (error) {
           console.error('[App] Failed to sync user status:', error);
           setVerificationStatus('unverified');
@@ -152,31 +169,49 @@ function App() {
     }
   }, [loading, houses]);
 
-  // 收藏功能
-  const toggleFavorite = (property: Property) => {
+  // 收藏功能 (同步到後端 API)
+  const toggleFavorite = async (property: Property) => {
     if (!property) return;
+    if (!userData?.lineUserId) {
+      setToast('請先登入 LINE');
+      setTimeout(() => setToast(null), 2500);
+      return;
+    }
 
     const propertyId = String(property.id);
     const isHousing = property.type === 'housing';
     const newTab = isHousing ? 'homes' : 'life';
-    const exists = favorites.find((f) => String(f.id) === propertyId);
+    const existingFav = favorites.find((f) => String(f.id) === propertyId) as (FavoriteItem & { favoriteId?: number }) | undefined;
 
-    if (exists) {
-      setFavorites(favorites.filter((f) => String(f.id) !== propertyId));
-      setFavoritesTab(newTab);
-      setToast('已從收藏移除');
+    if (existingFav && existingFav.favoriteId) {
+      // 移除收藏
+      const result = await removeFavorite(userData.lineUserId, existingFav.favoriteId);
+      if (result.success) {
+        setFavorites(favorites.filter((f) => String(f.id) !== propertyId));
+        setFavoritesTab(newTab);
+        setToast('已從收藏移除');
+      } else {
+        setToast('移除失敗: ' + (result.error || '未知錯誤'));
+      }
     } else {
-      setFavorites([
-        ...favorites,
-        {
-          ...property,
-          status: 'saved',
-          addedAt: new Date().toISOString(),
-        } as FavoriteItem,
-      ]);
-      setFavoritesTab(newTab);
-      const listName = isHousing ? '找房清單' : '生活口袋';
-      setToast(`已存入「${listName}」`);
+      // 新增收藏
+      const result = await addFavorite(userData.lineUserId, Number(property.id));
+      if (result.success) {
+        setFavorites([
+          ...favorites,
+          {
+            ...property,
+            favoriteId: result.favoriteId,
+            status: 'saved',
+            addedAt: new Date().toISOString(),
+          } as FavoriteItem,
+        ]);
+        setFavoritesTab(newTab);
+        const listName = isHousing ? '找房清單' : '生活口袋';
+        setToast(`已存入「${listName}」`);
+      } else {
+        setToast('收藏失敗: ' + (result.error || '未知錯誤'));
+      }
     }
     setTimeout(() => setToast(null), 2500);
   };

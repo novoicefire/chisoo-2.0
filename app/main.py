@@ -837,6 +837,9 @@ def handle_add_favorite(line_bot_api, reply_token, user_id, house_id):
     from app.models.favorite import Favorite
     from app.models.house import House
     from app.models import db_session
+    from app.services.session_service import SessionService
+    
+    app.logger.info(f"[收藏] user={user_id}, house_id={house_id}")
     
     if not house_id:
         reply_text(line_bot_api, reply_token, "❌ 無效的房源 ID")
@@ -848,33 +851,45 @@ def handle_add_favorite(line_bot_api, reply_token, user_id, house_id):
         reply_text(line_bot_api, reply_token, "❌ 無效的房源 ID")
         return
     
-    # 檢查房源是否存在
-    house = db_session.query(House).filter_by(house_id=house_id).first()
-    if not house:
-        reply_text(line_bot_api, reply_token, "❌ 找不到此房源")
-        return
-    
-    # 檢查是否已收藏
-    existing = db_session.query(Favorite).filter_by(
-        user_id=user_id, house_id=house_id
-    ).first()
-    
-    if existing:
+    try:
+        # 確保使用者存在（解決外鍵約束問題）
+        SessionService.get_or_create_user(user_id)
+        
+        # 檢查房源是否存在
+        house = db_session.query(House).filter_by(house_id=house_id).first()
+        if not house:
+            app.logger.warning(f"[收藏] 找不到房源 house_id={house_id}")
+            reply_text(line_bot_api, reply_token, "❌ 找不到此房源")
+            return
+        
+        # 檢查是否已收藏
+        existing = db_session.query(Favorite).filter_by(
+            user_id=user_id, house_id=house_id
+        ).first()
+        
+        if existing:
+            reply_text(line_bot_api, reply_token, 
+                f"📌 「{house.name}」已在您的收藏中！\n\n"
+                "點擊選單的『我的收藏』查看所有收藏。"
+            )
+            return
+        
+        # 新增收藏
+        new_favorite = Favorite(user_id=user_id, house_id=house_id)
+        db_session.add(new_favorite)
+        db_session.commit()
+        
+        app.logger.info(f"[收藏] 成功加入收藏 user={user_id}, house={house.name}")
         reply_text(line_bot_api, reply_token, 
-            f"📌 「{house.name}」已在您的收藏中！\n\n"
+            f"❤️ 已將「{house.name}」加入收藏！\n\n"
             "點擊選單的『我的收藏』查看所有收藏。"
         )
-        return
-    
-    # 新增收藏
-    new_favorite = Favorite(user_id=user_id, house_id=house_id)
-    db_session.add(new_favorite)
-    db_session.commit()
-    
-    reply_text(line_bot_api, reply_token, 
-        f"❤️ 已將「{house.name}」加入收藏！\n\n"
-        "點擊選單的『我的收藏』查看所有收藏。"
-    )
+    except Exception as e:
+        app.logger.error(f"[收藏] 發生錯誤: {e}")
+        db_session.rollback()
+        reply_text(line_bot_api, reply_token, 
+            f"❌ 收藏失敗，請稍後再試\n\n錯誤：{str(e)[:50]}"
+        )
 
 
 def handle_remove_favorite(line_bot_api, reply_token, user_id, house_id):
