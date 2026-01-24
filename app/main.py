@@ -1165,7 +1165,11 @@ def create_favorites_carousel(favorites, house_map):
                 "url": house.image_url or default_image,
                 "size": "full",
                 "aspectRatio": "20:13",
-                "aspectMode": "cover"
+                "aspectMode": "cover",
+                "action": {
+                    "type": "uri",
+                    "uri": f"{config.LIFF_URL}?propertyId={house.house_id}"
+                }
             },
             "body": {
                 "type": "box",
@@ -1190,9 +1194,9 @@ def create_favorites_carousel(favorites, house_map):
                     {
                         "type": "button",
                         "action": {
-                            "type": "postback",
+                            "type": "uri",
                             "label": "📄 查看詳情",
-                            "data": f"action=show_house_detail&house_id={house.house_id}"
+                            "uri": f"{config.LIFF_URL}?propertyId={house.house_id}"
                         },
                         "style": "primary",
                         "color": "#6366F1",
