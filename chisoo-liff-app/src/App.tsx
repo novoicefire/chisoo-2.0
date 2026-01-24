@@ -44,7 +44,7 @@ function App() {
   const [favoritesTab, setFavoritesTab] = useState<'homes' | 'life'>('homes');
   const [toast, setToast] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
-  const [favoritesLoading, setFavoritesLoading] = useState(false);
+  const [_favoritesLoading, setFavoritesLoading] = useState(false);
   const [houses, setHouses] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [apiAvailable, setApiAvailable] = useState(false);
