@@ -1,0 +1,142 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ '新增' if is_new else '編輯' }}人物誌 - Chi Soo 管理後台{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; font-weight: 600; margin-bottom: 8px; color: #374151; font-size: 0.95rem; }
+    .form-control {
+        width: 100%; padding: 10px 15px; border: 1px solid var(--input-border); border-radius: 6px; font-size: 0.95rem; transition: border-color 0.2s;
+    }
+    .form-control:focus { outline: none; border-color: var(--input-focus); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+    textarea.form-control { min-height: 100px; font-family: inherit; }
+    .hint { font-size: 0.85rem; color: #6b7280; margin-top: 5px; }
+    .checkbox-wrapper { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 15px; background: #f0f9ff; border-radius: 8px; border: 1px solid #bae6fd; }
+</style>
+{% endblock %}
+
+{% block header_title %}
+<div style="display: flex; align-items: center; gap: 10px;">
+    <a href="/" class="btn btn-secondary btn-sm"><i class="fa-solid fa-arrow-left"></i></a>
+    <span>{{ '新增' if is_new else '編輯' }}人物誌</span>
+</div>
+{% endblock %}
+
+{% block content %}
+<form method="POST" style="max-width: 900px;">
+    <div class="card">
+        <div class="card-header"><div class="card-title"><i class="fa-solid fa-id-card"></i> 基本資訊</div></div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="form-group">
+                <label>類型代碼 (ID)</label>
+                <input type="text" name="persona_id" class="form-control" 
+                       value="{{ persona.persona_id or '' }}" 
+                       {{ 'readonly' if not is_new else '' }} required
+                       pattern="[a-z_]+" placeholder="例: type_pet">
+                <div class="hint">僅限小寫英文與底線 (唯一識別碼)</div>
+            </div>
+            <div class="form-group">
+                <label>顯示名稱</label>
+                <input type="text" name="name" class="form-control" value="{{ persona.name or '' }}" required placeholder="例: 寵物友善型">
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>描述 (Description)</label>
+            <textarea name="description" class="form-control" placeholder="這段文字會顯示在診斷結果中...">{{ persona.description or '' }}</textarea>
+        </div>
+
+        <div class="form-group">
+            <label>觸發關鍵字 (Keywords)</label>
+            <input type="text" name="keywords" class="form-control" 
+                   value="{{ ', '.join(persona.keywords) if persona.keywords else '' }}"
+                   placeholder="例: 便宜, 省錢, 經濟, CP值 (以逗號分隔)">
+            <div class="hint">AI 對話識別觸發詞，權重 0.5 (S_keyword)</div>
+        </div>
+
+        <div class="checkbox-wrapper">
+            <input type="checkbox" name="active" id="active" {{ 'checked' if persona.active else '' }}>
+            <label for="active" style="cursor: pointer; font-weight: 600; color: #0369a1;">啟用此人物誌類型 (Active)</label>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><div class="card-title"><i class="fa-solid fa-sliders"></i> 演算法權重參數</div></div>
+        
+        <div style="display: grid; gap: 20px;">
+            <!-- 1. Rent -->
+            <div class="form-group">
+                <label>1. 預算範圍 (S_budget)</label>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="number" name="rent_min" class="form-control" placeholder="Min" 
+                           value="{{ persona.algo_config.get('rent_min', 0) if persona.algo_config else 0 }}">
+                    <span>至</span>
+                    <input type="number" name="rent_max" class="form-control" placeholder="Max"
+                           value="{{ persona.algo_config.get('rent_max', 99999) if persona.algo_config else 99999 }}">
+                    <span style="color: #6b7280;">元/月</span>
+                </div>
+            </div>
+
+            <!-- 2. Location -->
+            <div class="form-group">
+                <label>2. 地段偏好 (S_location)</label>
+                <input type="text" name="preferred_locations" class="form-control"
+                       value="{{ ', '.join(persona.algo_config.get('preferred_locations', [])) if persona.algo_config else '' }}"
+                       placeholder="例: downtown, school, quiet">
+            </div>
+
+            <!-- 3. Features -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="form-group">
+                    <label>3. 必備設施 (+30分)</label>
+                    <input type="text" name="required_features" class="form-control"
+                           value="{{ ', '.join(persona.algo_config.get('required', [])) if persona.algo_config else '' }}">
+                </div>
+                <div class="form-group">
+                    <label>4. 加分設施 (+15分)</label>
+                    <input type="text" name="bonus_features" class="form-control"
+                           value="{{ ', '.join(persona.algo_config.get('bonus', [])) if persona.algo_config else '' }}">
+                </div>
+            </div>
+            
+             <!-- 4. Landlord & Type -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="form-group">
+                    <label>5. 管理模式 (S_landlord)</label>
+                    <select name="management_pref" class="form-control">
+                        <option value="" {{ 'selected' if not persona.algo_config or not persona.algo_config.get('management_pref') else '' }}>不限</option>
+                        <option value="owner" {{ 'selected' if persona.algo_config and persona.algo_config.get('management_pref') == 'owner' else '' }}>房東同住 (Own)</option>
+                        <option value="pro" {{ 'selected' if persona.algo_config and persona.algo_config.get('management_pref') == 'pro' else '' }}>專業管理 (Pro)</option>
+                        <option value="no_owner" {{ 'selected' if persona.algo_config and persona.algo_config.get('management_pref') == 'no_owner' else '' }}>房東不住 (No Own)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>6. 房型偏好 (S_type)</label>
+                    <select name="room_type" class="form-control">
+                        <option value="" {{ 'selected' if not persona.algo_config or not persona.algo_config.get('room_type') else '' }}>不限</option>
+                        <option value="shared" {{ 'selected' if persona.algo_config and persona.algo_config.get('room_type') == 'shared' else '' }}>雅房 (Shared)</option>
+                        <option value="studio" {{ 'selected' if persona.algo_config and persona.algo_config.get('room_type') == 'studio' else '' }}>套房 (Studio)</option>
+                        <option value="apartment" {{ 'selected' if persona.algo_config and persona.algo_config.get('room_type') == 'apartment' else '' }}>整層 (Apt)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div style="display: flex; gap: 15px; margin-top: 20px;">
+        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> 儲存設定</button>
+        <a href="/" class="btn btn-secondary">取消</a>
+        {% if not is_new %}
+        <div style="margin-left: auto;">
+            <button type="submit" formaction="/persona/{{ persona.persona_id }}/delete" 
+                    class="btn btn-danger" 
+                    onclick="return confirm('⚠️ 確定要刪除此類型嗎？這將無法復原！')">
+                <i class="fa-solid fa-trash"></i> 刪除
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</form>
+{% endblock %}

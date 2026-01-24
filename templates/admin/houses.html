@@ -1,0 +1,143 @@
+{% extends "admin/base.html" %} {% block title %}房源管理 - Chi Soo 管理後台{%
+endblock %} {% block header_title %}房源管理{% endblock %} {% block content %}
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">
+      <i class="fa-solid fa-house-chimney"></i> 房源列表
+    </div>
+    <div>
+      <a href="/house/new" class="btn btn-primary btn-sm"
+        ><i class="fa-solid fa-plus"></i> 新增房源</a
+      >
+    </div>
+  </div>
+
+  <!-- Filter Section (Optional for future) -->
+  <!-- <div style="margin-bottom: 20px;">
+        <input type="text" placeholder="搜尋房源名稱..." style="padding: 8px; border: 1px solid #d1d5db; border-radius: 4px;">
+    </div> -->
+
+  <div style="overflow-x: auto">
+    {% if houses %}
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 50px">ID</th>
+          <th style="width: 100px">圖片</th>
+          <th>名稱 / 地址</th>
+          <th>租金</th>
+          <th>類型</th>
+          <th>狀態</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for house in houses %}
+        <tr>
+          <td>{{ house.house_id }}</td>
+          <td>
+            <img
+              src="{{ house.image_url }}"
+              style="
+                width: 80px;
+                height: 60px;
+                object-fit: cover;
+                border-radius: 4px;
+              "
+              onerror="
+                this.src = 'https://via.placeholder.com/80x60?text=No+Img'
+              "
+            />
+          </td>
+          <td>
+            <div style="font-weight: 600">{{ house.name }}</div>
+            <div style="font-size: 0.8rem; color: #9ca3af">
+              <i class="fa-solid fa-location-dot"></i> {{ house.address }}
+            </div>
+          </td>
+          <td style="font-weight: 600; color: #059669">${{ house.rent }}</td>
+          <td>
+            <div style="font-size: 0.9rem">{{ house.room_type }}</div>
+            <div
+              style="
+                font-size: 0.75rem;
+                color: #6b7280;
+                background: #f3f4f6;
+                padding: 2px 6px;
+                border-radius: 10px;
+                display: inline-block;
+                margin-top: 2px;
+              "
+            >
+              {{ house.category_tag or '未分類' }}
+            </div>
+          </td>
+          <td>
+            {% if house.is_active %}
+            <span class="badge badge-verified">上架中</span>
+            {% else %}
+            <span
+              class="badge badge-rejected"
+              style="background: #e5e7eb; color: #6b7280"
+              >已下架</span
+            >
+            {% endif %}
+          </td>
+          <td>
+            <div style="display: flex; gap: 5px">
+              <a
+                href="/house/{{ house.house_id }}"
+                class="btn btn-secondary btn-sm"
+                title="編輯"
+                ><i class="fa-solid fa-pen"></i
+              ></a>
+
+              <form action="/house/{{ house.house_id }}/toggle" method="POST">
+                <button
+                  type="submit"
+                  class="btn btn-secondary btn-sm {{ 'toggle-active' if house.is_active else 'toggle-inactive' }}"
+                  title="切換上架狀態"
+                >
+                  <i
+                    class="fa-solid fa-toggle-{{ 'on' if house.is_active else 'off' }}"
+                  ></i>
+                </button>
+              </form>
+
+              <form
+                action="/house/{{ house.house_id }}/delete"
+                method="POST"
+                onsubmit="return confirm('確定要刪除此房源嗎？');"
+              >
+                <button
+                  type="submit"
+                  class="btn btn-danger btn-sm"
+                  title="刪除"
+                >
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div style="padding: 40px; text-align: center; color: #9ca3af">
+      <i
+        class="fa-solid fa-house-crack"
+        style="font-size: 2rem; margin-bottom: 10px"
+      ></i>
+      <p>目前沒有房源資料</p>
+      <a
+        href="/house/new"
+        class="btn btn-secondary btn-sm"
+        style="margin-top: 10px"
+        >立即新增</a
+      >
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

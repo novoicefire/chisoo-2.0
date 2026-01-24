@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}Chi Soo 管理後台{% endblock %}</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      /*
+        * STRICT RULE: DO NOT USE EMOJIS AS ICONS.
+        * Always use FontAwesome icons (e.g., <i class="fa-solid fa-user"></i>).
+        * Emojis look unprofessional and inconsistent across OS.
+      */
+      :root {
+        --sidebar-bg: #1f2937;
+        --sidebar-text: #9ca3af;
+        --sidebar-text-hover: #ffffff;
+        --main-bg: #f3f4f6;
+        --card-bg: #ffffff;
+        --text-primary: #111827;
+        --text-secondary: #6b7280;
+        --accent-blue: #3b82f6;
+        --accent-green: #10b981;
+        --accent-orange: #f59e0b;
+        --accent-red: #ef4444;
+        --input-border: #d1d5db;
+        --input-focus: #3b82f6;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family:
+          "Segoe UI",
+          system-ui,
+          -apple-system,
+          sans-serif;
+        background-color: var(--main-bg);
+        color: var(--text-primary);
+        display: flex;
+        min-height: 100vh;
+      }
+
+      /* Sidebar */
+      .sidebar {
+        width: 250px;
+        background-color: var(--sidebar-bg);
+        color: var(--sidebar-text);
+        display: flex;
+        flex-direction: column;
+        position: fixed;
+        height: 100vh;
+        left: 0;
+        top: 0;
+        z-index: 100;
+      }
+      .logo {
+        padding: 20px;
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: white;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border-bottom: 1px solid #374151;
+      }
+      .nav-menu {
+        padding: 20px 0;
+        list-style: none;
+        flex-grow: 1;
+      }
+      .nav-link {
+        display: flex;
+        align-items: center;
+        padding: 12px 20px;
+        color: inherit;
+        text-decoration: none;
+        gap: 12px;
+        transition: all 0.3s;
+      }
+      .nav-link:hover,
+      .nav-link.active {
+        background-color: #111827;
+        color: var(--sidebar-text-hover);
+        border-left: 4px solid var(--accent-blue);
+      }
+      .nav-link i {
+        width: 20px;
+        text-align: center;
+      }
+
+      /* Main Content */
+      .main-content {
+        margin-left: 250px;
+        flex-grow: 1;
+        padding: 30px;
+        background-color: var(--main-bg);
+        width: calc(100% - 250px);
+      }
+
+      /* Common Components */
+      .card {
+        background: var(--card-bg);
+        border-radius: 10px;
+        padding: 25px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        margin-bottom: 25px;
+      }
+      .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #e5e7eb;
+      }
+      .card-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #374151;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .btn {
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        text-decoration: none;
+      }
+      .btn-primary {
+        background: var(--accent-blue);
+        color: white;
+      }
+      .btn-primary:hover {
+        background: #2563eb;
+      }
+      .btn-danger {
+        background: #fee2e2;
+        color: #dc2626;
+      }
+      .btn-danger:hover {
+        background: #fecaca;
+      }
+      .btn-success {
+        background: #d1fae5;
+        color: #059669;
+      }
+      .btn-warning {
+        background: #fef3c7;
+        color: #d97706;
+      }
+      .btn-secondary {
+        background: #e5e7eb;
+        color: #374151;
+      }
+      .btn-sm {
+        padding: 5px 12px;
+        font-size: 0.8rem;
+      }
+
+      .flash-container {
+        margin-bottom: 20px;
+      }
+      .flash {
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .flash-success {
+        background: #d1fae5;
+        color: #065f46;
+        border-left: 4px solid #059669;
+      }
+      .flash-error {
+        background: #fee2e2;
+        color: #991b1b;
+        border-left: 4px solid #ef4444;
+      }
+
+      /* Notification Styles */
+      .notification-wrapper {
+        position: relative;
+        display: inline-block;
+      }
+      .notification-btn {
+        background: #f3f4f6;
+        color: #6b7280;
+        border: none;
+        cursor: pointer;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        position: relative;
+      }
+      .notification-btn:hover {
+        background: #e5e7eb;
+        color: #374151;
+      }
+
+      .notification-badge {
+        position: absolute;
+        top: -2px;
+        right: -2px;
+        background: #ef4444;
+        color: white;
+        font-size: 0.65rem;
+        font-weight: bold;
+        min-width: 16px;
+        height: 16px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 4px;
+        border: 2px solid white;
+      }
+
+      .notification-dropdown {
+        display: none;
+        position: absolute;
+        right: 0;
+        top: 120%;
+        width: 280px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        border: 1px solid #e5e7eb;
+        z-index: 1000;
+        overflow: hidden;
+      }
+      .notification-wrapper:hover .notification-dropdown {
+        display: block;
+      }
+
+      .notification-header {
+        padding: 12px 15px;
+        border-bottom: 1px solid #f3f4f6;
+        font-weight: 600;
+        color: #374151;
+        font-size: 0.9rem;
+        background: #f9fafb;
+      }
+      .notification-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 15px;
+        text-decoration: none;
+        color: #4b5563;
+        font-size: 0.9rem;
+        border-bottom: 1px solid #f3f4f6;
+        transition: background 0.1s;
+      }
+      .notification-item:hover {
+        background: #f9fafb;
+        color: #111827;
+      }
+      .notification-item:last-child {
+        border-bottom: none;
+      }
+      .notification-icon {
+        width: 28px;
+        height: 28px;
+        background: #e0f2fe;
+        color: #0284c7;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .notification-empty {
+        padding: 30px;
+        text-align: center;
+        color: #9ca3af;
+        font-size: 0.85rem;
+      }
+
+      /* Tables */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th {
+        text-align: left;
+        padding: 12px;
+        background: #f9fafb;
+        border-bottom: 1px solid #e5e7eb;
+        font-size: 0.85rem;
+        color: #6b7280;
+        text-transform: uppercase;
+        font-weight: 600;
+      }
+      td {
+        padding: 15px;
+        border-bottom: 1px solid #f3f4f6;
+        color: #374151;
+        font-size: 0.95rem;
+        vertical-align: middle;
+      }
+      tr:hover {
+        background-color: #f9fafb;
+      }
+    </style>
+    {% block extra_css %}{% endblock %}
+  </head>
+  <body>
+    <div class="sidebar">
+      <div class="logo"><i class="fa-solid fa-hedgehog"></i> Chi Soo Admin</div>
+      <ul class="nav-menu">
+        <li class="nav-item">
+          <a
+            href="/"
+            class="nav-link {% if active_page == 'dashboard' %}active{% endif %}"
+          >
+            <i class="fa-solid fa-gauge"></i> 總覽儀表板
+          </a>
+        </li>
+        <li class="nav-item">
+          <a
+            href="/houses"
+            class="nav-link {% if active_page == 'houses' %}active{% endif %}"
+          >
+            <i class="fa-solid fa-house"></i> 房源管理
+          </a>
+        </li>
+        <li class="nav-item">
+          <a
+            href="/reviews"
+            class="nav-link {% if active_page == 'reviews' %}active{% endif %}"
+          >
+            <i class="fa-solid fa-comment-dots"></i> 評價管理
+          </a>
+        </li>
+        <li class="nav-item">
+          <a
+            href="#persona-section"
+            class="nav-link {% if active_page == 'personas' %}active{% endif %}"
+            onclick="
+              if (!location.pathname.endsWith('/'))
+                location.href = '/#persona-section';
+            "
+          >
+            <i class="fa-solid fa-masks-theater"></i> 人物誌設定
+          </a>
+        </li>
+      </ul>
+      <div
+        style="
+          padding: 20px;
+          font-size: 0.8rem;
+          color: #6b7280;
+          text-align: center;
+        "
+      >
+        Admin V2.0
+      </div>
+    </div>
+
+    <div class="main-content">
+      <!-- Topbar -->
+      <div
+        style="
+          background: white;
+          padding: 15px 30px;
+          border-radius: 10px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+          margin-bottom: 30px;
+        "
+      >
+        <div style="font-size: 1.1rem; font-weight: 600; color: #374151">
+          {% block header_title %}
+          <i class="fa-solid fa-hand-spock"></i> 歡迎回來，管理員{% endblock %}
+        </div>
+
+        <!-- Notification Area -->
+        <div class="notification-wrapper">
+          <button class="notification-btn">
+            <i class="fa-regular fa-bell"></i>
+            {% if notification_count > 0 %}
+            <div class="notification-badge">
+              {{ notification_count if notification_count < 99 else '99+' }}
+            </div>
+            {% endif %}
+          </button>
+
+          <div class="notification-dropdown">
+            <div class="notification-header">
+              待辦事項 ({{ notification_count }})
+            </div>
+
+            {% if notifications_list %} {% for n in notifications_list %}
+            <a href="{{ n.link }}" class="notification-item">
+              <div class="notification-icon">
+                <i class="fa-solid {{ n.icon }}"></i>
+              </div>
+              <span>{{ n.msg }}</span>
+            </a>
+            {% endfor %} {% else %}
+            <div class="notification-empty">
+              <i
+                class="fa-regular fa-calendar-check"
+                style="font-size: 24px; margin-bottom: 5px; opacity: 0.5"
+              ></i>
+              <div>目前沒有新的通知</div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      {% with messages = get_flashed_messages() %} {% if messages %}
+      <div class="flash-container">
+        {% for message in messages %}
+        <div class="flash flash-success">
+          <i class="fa-solid fa-circle-check"></i> {{ message }}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %} {% endwith %} {% block content %}{% endblock %}
+    </div>
+
+    {% block scripts %}{% endblock %}
+  </body>
+</html>

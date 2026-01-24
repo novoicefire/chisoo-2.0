@@ -1,0 +1,183 @@
+{% extends "admin/base.html" %} {% block title %}審核詳情 - Chi Soo 管理後台{%
+endblock %} {% block extra_css %}
+<style>
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    margin-bottom: 20px;
+  }
+  .info-item {
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+  }
+  .info-item label {
+    font-weight: 600;
+    color: #666;
+    font-size: 12px;
+    display: block;
+    margin-bottom: 5px;
+  }
+  .info-item span {
+    font-size: 16px;
+    color: #333;
+  }
+  .image-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+  .image-card {
+    text-align: center;
+  }
+  .image-card img {
+    max-width: 100%;
+    border-radius: 10px;
+    border: 2px solid #ddd;
+  }
+  .image-card p {
+    margin-top: 10px;
+    font-weight: 600;
+    color: #666;
+  }
+  .badge {
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: bold;
+  }
+  .badge-pending {
+    background: #fef3c7;
+    color: #d97706;
+  }
+  .badge-verified {
+    background: #d1fae5;
+    color: #059669;
+  }
+  .badge-rejected {
+    background: #fee2e2;
+    color: #dc2626;
+  }
+  textarea {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    min-height: 80px;
+    font-size: 14px;
+  }
+</style>
+{% endblock %} {% block header_title %}
+<div style="display: flex; align-items: center; gap: 10px">
+  <a href="/" class="btn btn-secondary btn-sm"
+    ><i class="fa-solid fa-arrow-left"></i
+  ></a>
+  <span>審核詳情</span>
+</div>
+{% endblock %} {% block content %}
+<div class="card">
+  <div class="card-header">
+    <div class="card-title"><i class="fa-solid fa-user"></i> 學生資訊</div>
+    <span class="badge badge-{{ v.status }}">{{ v.status }}</span>
+  </div>
+  <div class="info-grid">
+    <div class="info-item">
+      <label>姓名</label>
+      <span>{{ v.name }}</span>
+    </div>
+    <div class="info-item">
+      <label>學號</label>
+      <span><code>{{ v.student_id }}</code></span>
+    </div>
+    <div class="info-item">
+      <label>系級</label>
+      <span>{{ v.dept }}</span>
+    </div>
+    <div class="info-item">
+      <label>提交時間</label>
+      <span
+        >{{ v.submitted_at.strftime('%Y-%m-%d %H:%M') if v.submitted_at else '-'
+        }}</span
+      >
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title"><i class="fa-solid fa-camera"></i> 學生證照片</div>
+  </div>
+  <div class="image-grid">
+    <div class="image-card">
+      <img
+        src="/uploads/verifications/{{ v.front_image_path }}"
+        alt="正面"
+        onerror="
+          this.src =
+            'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 400 300%22><rect fill=%22%23eee%22 width=%22400%22 height=%22300%22/><text x=%22200%22 y=%22150%22 text-anchor=%22middle%22 fill=%22%23999%22>圖片載入失敗</text></svg>'
+        "
+      />
+      <p>正面（有照片）</p>
+    </div>
+    <div class="image-card">
+      <img
+        src="/uploads/verifications/{{ v.back_image_path }}"
+        alt="反面"
+        onerror="
+          this.src =
+            'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 400 300%22><rect fill=%22%23eee%22 width=%22400%22 height=%22300%22/><text x=%22200%22 y=%22150%22 text-anchor=%22middle%22 fill=%22%23999%22>圖片載入失敗</text></svg>'
+        "
+      />
+      <p>反面（註冊章）</p>
+    </div>
+  </div>
+</div>
+
+{% if v.status == 'pending' %}
+<div class="card">
+  <div class="card-header">
+    <div class="card-title"><i class="fa-solid fa-gear"></i> 審核操作</div>
+  </div>
+  <form
+    action="/verification/{{ v.id }}/approve"
+    method="POST"
+    style="margin-bottom: 15px"
+  >
+    <button
+      type="submit"
+      class="btn btn-success"
+      onclick="return confirm('確定通過此驗證申請？');"
+    >
+      <i class="fa-solid fa-check"></i> 通過審核
+    </button>
+  </form>
+  <form action="/verification/{{ v.id }}/reject" method="POST">
+    <label style="font-weight: 600; margin-bottom: 8px; display: block"
+      >拒絕原因（選填）</label
+    >
+    <textarea name="note" placeholder="例：照片模糊、資料不符等..."></textarea>
+    <button
+      type="submit"
+      class="btn btn-danger"
+      style="margin-top: 10px"
+      onclick="return confirm('確定拒絕此驗證申請？');"
+    >
+      <i class="fa-solid fa-xmark"></i> 拒絕審核
+    </button>
+  </form>
+</div>
+{% elif v.reviewer_note %}
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">
+      <i class="fa-solid fa-file-lines"></i> 審核備註
+    </div>
+  </div>
+  <p>{{ v.reviewer_note }}</p>
+  <p style="color: #666; margin-top: 10px">
+    審核時間：{{ v.reviewed_at.strftime('%Y-%m-%d %H:%M') if v.reviewed_at else
+    '-' }}
+  </p>
+</div>
+{% endif %} {% endblock %}

@@ -1,0 +1,146 @@
+{% extends "admin/base.html" %} {% block title %}評價管理 - Chi Soo 管理後台{%
+endblock %} {% block header_title %}評價管理{% endblock %} {% block content %}
+<div class="card">
+  <div class="card-header">
+    <div class="card-title"><i class="fa-solid fa-list"></i> 評價列表</div>
+    <div>
+      <!-- Filters could go here -->
+      <a
+        href="/reviews"
+        class="btn btn-secondary btn-sm {{ 'btn-primary' if not status_filter else '' }}"
+        >全部</a
+      >
+      <a
+        href="/reviews?status=pending"
+        class="btn btn-secondary btn-sm {{ 'btn-primary' if status_filter == 'pending' else '' }}"
+        >待審核</a
+      >
+      <a
+        href="/reviews?status=approved"
+        class="btn btn-secondary btn-sm {{ 'btn-primary' if status_filter == 'approved' else '' }}"
+        >已發布</a
+      >
+      <a
+        href="/reviews?status=rejected"
+        class="btn btn-secondary btn-sm {{ 'btn-primary' if status_filter == 'rejected' else '' }}"
+        >已駁回</a
+      >
+    </div>
+  </div>
+
+  <div style="overflow-x: auto">
+    {% if reviews %}
+    <table>
+      <thead>
+        <tr>
+          <th>日期</th>
+          <th>房源</th>
+          <th>評分</th>
+          <th style="width: 40%">評論內容</th>
+          <th>狀態</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in reviews %}
+        <tr>
+          <td style="white-space: nowrap; font-size: 0.85rem; color: #6b7280">
+            {{ r.created_at.strftime('%Y-%m-%d') if r.created_at else '-' }}
+          </td>
+          <td>
+            <div style="font-weight: 600">
+              {{ r.house.name if r.house else 'Unknown' }}
+            </div>
+            <div style="font-size: 0.8rem; color: #9ca3af">
+              User: {{ r.user_id[:8] }}...
+            </div>
+          </td>
+          <td>
+            <span style="color: #fbbf24">
+              {% for _ in range(r.rating) %}<i class="fa-solid fa-star"></i>{%
+              endfor %} {% for _ in range(5 - r.rating) %}<i
+                class="fa-regular fa-star"
+              ></i
+              >{% endfor %}
+            </span>
+          </td>
+          <td>
+            <div
+              style="
+                max-height: 60px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+              "
+            >
+              {{ r.comment }}
+            </div>
+            {% if r.reject_reason %}
+            <div style="font-size: 0.8rem; color: #ef4444; margin-top: 4px">
+              駁回: {{ r.reject_reason }}
+            </div>
+            {% endif %}
+          </td>
+          <td>
+            {% if r.status == 'approved' %}
+            <span class="badge badge-verified">已發布</span>
+            {% elif r.status == 'rejected' %}
+            <span class="badge badge-rejected">已駁回</span>
+            {% else %}
+            <span class="badge badge-pending">待審核</span>
+            {% endif %}
+          </td>
+          <td>
+            <div style="display: flex; gap: 5px">
+              {% if r.status != 'approved' %}
+              <form action="/reviews/{{ r.id }}/approve" method="POST">
+                <button
+                  type="submit"
+                  class="btn btn-success btn-sm"
+                  title="通過"
+                >
+                  <i class="fa-solid fa-check"></i>
+                </button>
+              </form>
+              {% endif %} {% if r.status != 'rejected' %}
+              <form action="/reviews/{{ r.id }}/reject" method="POST">
+                <button
+                  type="submit"
+                  class="btn btn-warning btn-sm"
+                  title="駁回"
+                >
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </form>
+              {% endif %}
+
+              <form
+                action="/reviews/{{ r.id }}/delete"
+                method="POST"
+                onsubmit="return confirm('確定要刪除此評價嗎？');"
+              >
+                <button
+                  type="submit"
+                  class="btn btn-danger btn-sm"
+                  title="刪除"
+                >
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div style="padding: 40px; text-align: center; color: #9ca3af">
+      <i
+        class="fa-solid fa-folder-open"
+        style="font-size: 2rem; margin-bottom: 10px"
+      ></i>
+      <p>沒有找到符合條件的評價</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

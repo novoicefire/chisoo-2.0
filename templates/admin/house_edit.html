@@ -1,0 +1,141 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ '新增' if is_new else '編輯' }}房源 - Chi Soo 管理後台{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; font-weight: 600; margin-bottom: 8px; color: #374151; font-size: 0.95rem; }
+    .form-control {
+        width: 100%; padding: 10px 15px; border: 1px solid var(--input-border); border-radius: 6px; font-size: 0.95rem; transition: border-color 0.2s;
+    }
+    .form-control:focus { outline: none; border-color: var(--input-focus); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+    textarea.form-control { min-height: 120px; font-family: inherit; }
+    .hint { font-size: 0.85rem; color: #6b7280; margin-top: 5px; }
+    
+    .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-top: 10px; padding: 15px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb; }
+    .feature-item { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .feature-item input { accent-color: #3b82f6; width: 16px; height: 16px; }
+    
+    .image-preview { width: 100%; height: 200px; object-fit: cover; border-radius: 8px; margin-top: 10px; background: #f3f4f6; border: 2px dashed #d1d5db; }
+</style>
+{% endblock %}
+
+{% block header_title %}
+<div style="display: flex; align-items: center; gap: 10px;">
+    <a href="/houses" class="btn btn-secondary btn-sm"><i class="fa-solid fa-arrow-left"></i></a>
+    <span>{{ '新增' if is_new else '編輯' }}房源</span>
+</div>
+{% endblock %}
+
+{% block content %}
+<form method="POST" style="max-width: 1000px;">
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 25px;">
+        <!-- Left: Main Info -->
+        <div>
+            <div class="card">
+                <div class="card-header"><div class="card-title"><i class="fa-solid fa-circle-info"></i> 基本資訊</div></div>
+                
+                <div class="form-group">
+                    <label>房源名稱</label>
+                    <input type="text" name="name" class="form-control" value="{{ house.name or '' }}" required placeholder="例: 大學城優質套房A">
+                </div>
+
+                <div class="form-group">
+                    <label>地址</label>
+                    <input type="text" name="address" class="form-control" value="{{ house.address or '' }}" placeholder="例: 南投縣埔里鎮大學路1號">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="form-group">
+                        <label>租金 (月)</label>
+                        <input type="number" name="rent" class="form-control" value="{{ house.rent or '' }}" required placeholder="5000">
+                    </div>
+                    <div class="form-group">
+                        <label>房型</label>
+                        <select name="room_type" class="form-control">
+                            <option value="套房" {{ 'selected' if house.room_type == '套房' else '' }}>套房</option>
+                            <option value="雅房" {{ 'selected' if house.room_type == '雅房' else '' }}>雅房</option>
+                            <option value="家庭式" {{ 'selected' if house.room_type == '家庭式' else '' }}>家庭式 (整層)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>歸屬類型 (Persona Tag)</label>
+                    <select name="category_tag" class="form-control">
+                        <option value="">-- 無 --</option>
+                        {% for p in personas %}
+                        <option value="{{ p.name }}" {{ 'selected' if house.category_tag == p.name else '' }}>{{ p.name }} ({{ p.persona_id }})</option>
+                        {% endfor %}
+                    </select>
+                    <div class="hint">選擇適合推薦給哪類使用者 (演算法依據)</div>
+                </div>
+
+                <div class="form-group">
+                    <label>詳細描述</label>
+                    <textarea name="description" class="form-control" placeholder="描述房間特色、周邊環境等...">{{ house.description or '' }}</textarea>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><div class="card-title"><i class="fa-solid fa-list-check"></i> 設施與特徵</div></div>
+                <div class="feature-grid">
+                    {% for feature in ['冷氣', '冰箱', '洗衣機', '網路', '第四台', '飲水機', '電梯', '停車位', '陽台', '可養寵', '含水費', '含電費', '男女分層', '垃圾子母車'] %}
+                    <label class="feature-item">
+                        <input type="checkbox" name="feature_{{ feature }}" {{ 'checked' if house.features and house.features.get(feature) else '' }}>
+                        <span>{{ feature }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Image & Status -->
+        <div>
+            <div class="card">
+                <div class="card-header"><div class="card-title"><i class="fa-solid fa-image"></i> 封面圖片</div></div>
+                
+                <div class="form-group">
+                    <label>圖片連結 (URL)</label>
+                    <input type="text" name="image_url" id="imgUrlInput" class="form-control" 
+                           value="{{ house.image_url or '' }}" 
+                           placeholder="https://..."
+                           onchange="document.getElementById('previewImg').src = this.value || 'https://via.placeholder.com/400x300?text=Preview'">
+                </div>
+                
+                <img id="previewImg" class="image-preview" 
+                     src="{{ house.image_url or 'https://via.placeholder.com/400x300?text=Preview' }}" 
+                     onerror="this.src='https://via.placeholder.com/400x300?text=No+Img'">
+            </div>
+
+            <div class="card">
+                <div class="card-header"><div class="card-title"><i class="fa-solid fa-gear"></i> 設定</div></div>
+                
+                 <div class="form-group">
+                    <label class="feature-item" style="font-weight: 600;">
+                        <input type="checkbox" name="is_active" {{ 'checked' if is_new or house.is_active else '' }}>
+                        <span>上架中 (Active)</span>
+                    </label>
+                    <div class="hint" style="margin-left: 24px;">取消勾選以暫時下架</div>
+                </div>
+
+                <hr style="margin: 20px 0; border: 0; border-top: 1px solid #e5e7eb;">
+
+                <div style="display: flex; gap: 10px; flex-direction: column;">
+                    <button type="submit" class="btn btn-primary" style="justify-content: center;"><i class="fa-solid fa-save"></i> 儲存房源</button>
+                    <a href="/houses" class="btn btn-secondary" style="justify-content: center;">取消</a>
+                    
+                    {% if not is_new %}
+                    <button type="submit" formaction="/house/{{ house.house_id }}/delete"
+                            class="btn btn-danger" style="justify-content: center; margin-top: 10px;"
+                            onclick="return confirm('⚠️ 確定要刪除此房源嗎？這將無法復原！')">
+                        <i class="fa-solid fa-trash-can"></i> 刪除房源
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}

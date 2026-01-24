@@ -1,0 +1,422 @@
+{% extends "admin/base.html" %} {% block title %}儀表板 - Chi Soo 管理後台{%
+endblock %} {% block extra_css %}
+<style>
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-bottom: 30px;
+  }
+  .stat-card {
+    background: white;
+    border-radius: 8px;
+    padding: 25px;
+    display: flex;
+    flex-direction: column;
+    color: white;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+  .stat-card.blue {
+    background: linear-gradient(135deg, #60a5fa, #3b82f6);
+  }
+  .stat-card.green {
+    background: linear-gradient(135deg, #34d399, #10b981);
+  }
+  .stat-card.orange {
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  }
+  .stat-card.red {
+    background: linear-gradient(135deg, #f87171, #ef4444);
+  }
+
+  .stat-number {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 5px;
+  }
+  .stat-icon {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 3rem;
+    opacity: 0.2;
+  }
+
+  .section-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+  }
+
+  .badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .badge-testing {
+    background: #dbeafe;
+    color: #1e40af;
+  }
+  .badge-pending {
+    background: #fef3c7;
+    color: #d97706;
+  }
+
+  .toggle-active {
+    color: #10b981;
+  }
+  .toggle-inactive {
+    color: #d1d5db;
+  }
+</style>
+{% endblock %} {% block content %}
+<!-- Stats Grid -->
+<div class="stats-grid">
+  <div class="stat-card blue">
+    <div class="stat-number">{{ user_count }}</div>
+    <div class="stat-label">總使用者數</div>
+    <i class="fa-solid fa-users stat-icon"></i>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-number">{{ house_count }}</div>
+    <div class="stat-label">房源數量</div>
+    <i class="fa-solid fa-house stat-icon"></i>
+  </div>
+  <div class="stat-card orange">
+    <div class="stat-number">{{ testing_count }}</div>
+    <div class="stat-label">進行中測驗</div>
+    <i class="fa-solid fa-clipboard-question stat-icon"></i>
+  </div>
+  <div class="stat-card red">
+    <div class="stat-number">{{ pending_count }}</div>
+    <div class="stat-label">待審核申請</div>
+    <i class="fa-solid fa-user-check stat-icon"></i>
+  </div>
+</div>
+
+<div class="section-grid">
+  <!-- Left Column -->
+  <div style="display: flex; flex-direction: column; gap: 20px">
+    <!-- Charts Row -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px">
+      <!-- Chart 1: Persona Distribution -->
+      <div class="card">
+        <div class="card-header"><div class="card-title">人物誌分佈</div></div>
+        <canvas id="personaChart"></canvas>
+      </div>
+      <!-- Chart 2: User Growth -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">用戶成長趨勢 (近7天)</div>
+        </div>
+        <div style="height: 250px; padding: 10px; position: relative">
+          <canvas
+            id="growthChart"
+            style="display: block; width: 100%; height: 100%"
+          ></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pending Verifications -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          待處理驗證 ({{ pending_verifications|length }})
+        </div>
+        <a href="/verifications" class="btn btn-primary btn-sm">查看全部</a>
+      </div>
+      <div style="overflow-x: auto">
+        {% if pending_verifications %}
+        <table>
+          <thead>
+            <tr>
+              <th>提交時間</th>
+              <th>姓名/系級</th>
+              <th>學號</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in pending_verifications %}
+            <tr>
+              <td>{{ v.submitted_at.strftime('%m/%d %H:%M') }}</td>
+              <td>
+                <div style="font-weight: 600">{{ v.name }}</div>
+                <div style="font-size: 0.8rem; color: #9ca3af">
+                  {{ v.dept }}
+                </div>
+              </td>
+              <td><code>{{ v.student_id }}</code></td>
+              <td>
+                <a
+                  href="/verification/{{ v.id }}"
+                  class="btn btn-primary btn-sm"
+                  >審核</a
+                >
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div style="padding: 20px; text-align: center; color: #9ca3af">
+          <i
+            class="fa-solid fa-check-circle"
+            style="font-size: 2rem; margin-bottom: 10px; display: block"
+          ></i>
+          目前沒有待審核的項目
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Recent Users -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">即時使用者動態</div>
+      </div>
+      <div style="overflow-x: auto">
+        {% if users %}
+        <table>
+          <thead>
+            <tr>
+              <th>使用者</th>
+              <th>狀態</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for user, session in users[:5] %}
+            <tr>
+              <td style="display: flex; align-items: center; gap: 10px">
+                {% if user.picture_url %}
+                <img
+                  src="{{ user.picture_url }}"
+                  style="width: 32px; height: 32px; border-radius: 50%"
+                />
+                {% else %}
+                <div
+                  style="
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 50%;
+                    background: #e5e7eb;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 0.8rem;
+                  "
+                >
+                  ?
+                </div>
+                {% endif %}
+                <div>
+                  <div style="font-weight: 500">
+                    {{ user.display_name or 'Unknown' }}
+                  </div>
+                  <div style="font-size: 0.75rem; color: #9ca3af">
+                    {{ user.persona_type or '未分類' }}
+                  </div>
+                </div>
+              </td>
+              <td>
+                {% if session %}
+                <span class="badge badge-testing">{{ session.status }}</span>
+                {% else %}
+                <span style="color: #9ca3af; font-size: 0.8rem">離線</span>
+                {% endif %}
+              </td>
+              <td>
+                <a
+                  href="/user/{{ user.user_id }}"
+                  class="btn btn-secondary btn-sm"
+                  >詳情</a
+                >
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column -->
+  <div style="display: flex; flex-direction: column; gap: 20px">
+    <!-- Quick Actions -->
+    <div class="card" id="actions-section">
+      <div class="card-header"><div class="card-title">系統操作</div></div>
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <a href="/seed" class="btn btn-success" style="justify-content: center">
+          <i class="fa-solid fa-seedling"></i> 重置種子資料
+        </a>
+        <form action="/reset-sessions" method="POST" style="width: 100%">
+          <button
+            type="submit"
+            class="btn btn-warning"
+            style="width: 100%; justify-content: center"
+            onclick="return confirm('確定要清空所有測驗進度嗎？');"
+          >
+            <i class="fa-solid fa-rotate-right"></i> 重置所有 Session
+          </button>
+        </form>
+        <form action="/reset-users" method="POST" style="width: 100%">
+          <button
+            type="submit"
+            class="btn btn-danger"
+            style="width: 100%; justify-content: center"
+            onclick="return confirm('⚠️ 這將刪除所有使用者資料！確定嗎？');"
+          >
+            <i class="fa-solid fa-trash-can"></i> 清空使用者資料庫
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Personas List -->
+    <div class="card" id="persona-section">
+      <div class="card-header">
+        <div class="card-title">人物誌列表</div>
+        <a href="/persona/new" class="btn btn-primary btn-sm"
+          ><i class="fa-solid fa-plus"></i
+        ></a>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        {% for persona in personas %}
+        <div
+          style="
+            padding: 10px;
+            background: #f9fafb;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          "
+        >
+          <div>
+            <div style="font-weight: 600; font-size: 0.9rem">
+              {{ persona.name }}
+            </div>
+            <div style="font-size: 0.75rem; color: #9ca3af">
+              {{ persona.persona_id }}
+            </div>
+          </div>
+          <div style="display: flex; gap: 5px">
+            <a
+              href="/persona/{{ persona.persona_id }}"
+              class="btn btn-secondary btn-sm"
+              style="padding: 4px 8px"
+              ><i class="fa-solid fa-pen"></i
+            ></a>
+            <form
+              action="/persona/{{ persona.persona_id }}/toggle"
+              method="POST"
+            >
+              <button
+                type="submit"
+                class="btn btn-secondary btn-sm {{ 'toggle-active' if persona.active else 'toggle-inactive' }}"
+                style="padding: 4px 8px"
+              >
+                <i
+                  class="fa-solid fa-toggle-{{ 'on' if persona.active else 'off' }}"
+                ></i>
+              </button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  // Persona Distribution Chart
+  const ctx = document.getElementById("personaChart");
+  if (ctx) {
+    new Chart(ctx, {
+      type: "doughnut",
+      data: {
+        labels: JSON.parse("{{ persona_labels | tojson | safe }}"),
+        datasets: [
+          {
+            label: "使用者分佈",
+            data: JSON.parse("{{ persona_data | tojson | safe }}"),
+            backgroundColor: [
+              "#3b82f6",
+              "#10b981",
+              "#f59e0b",
+              "#ef4444",
+              "#8b5cf6",
+            ],
+            borderWidth: 0,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: "bottom" },
+        },
+      },
+    });
+  }
+
+  // User Growth Chart
+  const ctxGrowth = document.getElementById("growthChart");
+  if (ctxGrowth) {
+    const growthLabels = JSON.parse("{{ growth_labels | tojson | safe }}");
+    const growthData = JSON.parse("{{ growth_data | tojson | safe }}");
+    console.log("Growth Data:", growthLabels, growthData);
+
+    new Chart(ctxGrowth, {
+      type: "line",
+      data: {
+        labels: growthLabels,
+        datasets: [
+          {
+            label: "新增用戶",
+            data: JSON.parse("{{ growth_data | tojson | safe }}"),
+            borderColor: "#8b5cf6",
+            backgroundColor: "rgba(139, 92, 246, 0.1)",
+            tension: 0.4,
+            fill: true,
+            pointBackgroundColor: "#8b5cf6",
+            pointRadius: 4,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              stepSize: 1,
+              precision: 0,
+            },
+            grid: {
+              borderDash: [5, 5],
+            },
+          },
+          x: {
+            grid: {
+              display: false,
+            },
+          },
+        },
+      },
+    });
+  }
+</script>
+{% endblock %}
