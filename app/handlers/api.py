@@ -210,6 +210,7 @@ def get_reviews():
     limit = request.args.get("limit", 10, type=int)
     
     query = db_session.query(Review)
+    include_house_info = False  # 是否在回傳中包含房源資訊
     
     if house_id:
         # 取得特定房源的已審核評價
@@ -217,6 +218,7 @@ def get_reviews():
     elif user_id:
         # 取得使用者自己的評價 (含所有狀態)
         query = query.filter(Review.user_id == user_id)
+        include_house_info = True  # 用戶管理自己評價時需要顯示房源資訊
     else:
         # 只取已審核的公開評價
         query = query.filter(Review.status == "approved")
@@ -226,7 +228,7 @@ def get_reviews():
     reviews = query.order_by(Review.created_at.desc()).offset(offset).limit(limit).all()
     
     return jsonify({
-        "reviews": [review_to_dict(r) for r in reviews],
+        "reviews": [review_to_dict(r, include_house=include_house_info) for r in reviews],
         "page": page,
         "limit": limit,
         "total": total
@@ -311,6 +313,95 @@ def delete_review(review_id: int):
     return jsonify({"message": "Review deleted"})
 
 
+@api_bp.route("/reviews/<int:review_id>", methods=["PUT"])
+def update_review(review_id: int):
+    """
+    編輯評價 (僅限本人，且狀態為 pending 或 rejected)
+    編輯後狀態會自動設為 pending 重新送審
+    """
+    user_id = request.headers.get("X-User-Id")
+    
+    if not user_id:
+        return jsonify({"error": "X-User-Id header is required"}), 401
+    
+    review = db_session.query(Review).filter_by(
+        review_id=review_id, user_id=user_id
+    ).first()
+    
+    if not review:
+        return jsonify({"error": "Review not found or not owned by you"}), 404
+    
+    # 只有 pending 或 rejected 狀態才能編輯
+    if review.status not in ("pending", "rejected"):
+        return jsonify({
+            "error": "Cannot edit approved review",
+            "message": "已公開的評價需先收回才能編輯"
+        }), 400
+    
+    data = request.get_json()
+    
+    # 更新評分 (1-5)
+    if "rating" in data:
+        rating = data["rating"]
+        if not (1 <= rating <= 5):
+            return jsonify({"error": "rating must be between 1 and 5"}), 400
+        review.rating = rating
+    
+    # 更新評論內容
+    if "comment" in data:
+        review.comment = data["comment"]
+    
+    # 編輯後重新送審
+    review.status = "pending"
+    review.reject_reason = None
+    db_session.commit()
+    
+    return jsonify({
+        "message": "Review updated and resubmitted for approval",
+        "review": review_to_dict(review, include_house=True)
+    })
+
+
+@api_bp.route("/reviews/<int:review_id>/withdraw", methods=["POST"])
+def withdraw_review(review_id: int):
+    """
+    收回評價 (僅限本人，且狀態為 approved)
+    收回後狀態變為 pending，可進行編輯
+    """
+    user_id = request.headers.get("X-User-Id")
+    
+    if not user_id:
+        return jsonify({"error": "X-User-Id header is required"}), 401
+    
+    review = db_session.query(Review).filter_by(
+        review_id=review_id, user_id=user_id
+    ).first()
+    
+    if not review:
+        return jsonify({"error": "Review not found or not owned by you"}), 404
+    
+    # 只有 approved 狀態才能收回
+    if review.status != "approved":
+        return jsonify({
+            "error": "Only approved reviews can be withdrawn",
+            "message": "只有已公開的評價才能收回"
+        }), 400
+    
+    review.status = "pending"
+    db_session.commit()
+    
+    # 更新房源的評價統計
+    house = db_session.query(House).filter_by(house_id=review.house_id).first()
+    if house:
+        house.update_rating_stats()
+        db_session.commit()
+    
+    return jsonify({
+        "message": "Review withdrawn, now pending for re-approval",
+        "review": review_to_dict(review, include_house=True)
+    })
+
+
 # ============================================================
 # 輔助函數
 # ============================================================
@@ -336,14 +427,30 @@ def house_to_dict(house: House) -> dict:
     }
 
 
-def review_to_dict(review: Review) -> dict:
-    """將 Review 物件轉為字典"""
-    return {
+def review_to_dict(review: Review, include_house: bool = False) -> dict:
+    """
+    將 Review 物件轉為字典
+    
+    Args:
+        review: Review 物件
+        include_house: 是否包含房源資訊 (名稱、圖片)
+    """
+    result = {
         "review_id": review.review_id,
         "house_id": review.house_id,
         "rating": review.rating,
         "comment": review.comment,
         "status": review.status,
         "reject_reason": review.reject_reason,
-        "created_at": review.created_at.isoformat() if review.created_at else None
+        "created_at": review.created_at.isoformat() if review.created_at else None,
+        "updated_at": review.updated_at.isoformat() if review.updated_at else None
     }
+    
+    if include_house and review.house:
+        result["house_name"] = review.house.name
+        result["house_image"] = (
+            review.house.images[0] if review.house.images 
+            else review.house.image_url or ""
+        )
+    
+    return result

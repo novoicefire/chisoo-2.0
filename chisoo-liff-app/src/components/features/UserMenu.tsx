@@ -14,6 +14,7 @@ interface UserMenuProps {
     onOpenVerification: () => void;
     onLogout: () => void;
     onOpenFavorites: () => void;
+    onOpenReviews: () => void;
 }
 
 export const UserMenu: React.FC<UserMenuProps> = ({
@@ -23,6 +24,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({
     onOpenVerification,
     onLogout,
     onOpenFavorites,
+    onOpenReviews,
 }) => {
     // 判斷是否已驗證：必須明確檢查 verificationStatus
     const isVerified = verificationStatus === 'verified';
@@ -87,6 +89,15 @@ export const UserMenu: React.FC<UserMenuProps> = ({
                         className="w-full px-4 py-3.5 flex items-center gap-4 text-sm text-text hover:bg-land/50 text-left"
                     >
                         <Icon name="bookmark" size={20} className="opacity-60" /> 我的收藏
+                    </button>
+                    <button
+                        onClick={() => {
+                            onClose();
+                            onOpenReviews();
+                        }}
+                        className="w-full px-4 py-3.5 flex items-center gap-4 text-sm text-text hover:bg-land/50 text-left border-t border-gray-100"
+                    >
+                        <Icon name="message-square" size={20} className="opacity-60" /> 評價管理
                     </button>
                     <button
                         onClick={() => {

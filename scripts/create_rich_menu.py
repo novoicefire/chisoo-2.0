@@ -57,10 +57,10 @@ RICH_MENU_CONFIG = {
             "bounds": {"x": 400, "y": 405, "width": 400, "height": 405},
             "action": {"type": "postback", "data": "action=coming_soon&feature=review"}
         },
-        # 右下：地圖式搜尋 (暫時停用 - 重新設計中)
+        # 右下：地圖式搜尋 (開啟 LIFF 網頁)
         {
             "bounds": {"x": 800, "y": 405, "width": 400, "height": 405},
-            "action": {"type": "postback", "data": "action=coming_soon&feature=map"}
+            "action": {"type": "uri", "uri": "https://liff.line.me/2008803154-R8zX1GgB"}
         }
     ]
 }

@@ -241,3 +241,84 @@ export function transformFavoriteToProperty(fav: FavoriteApiItem): Property & { 
     } as Property & { favoriteId: number };
 }
 
+// ============================================================
+// 評價管理 API
+// ============================================================
+
+import type { UserReview } from '../types';
+
+/**
+ * 取得使用者的評價列表 (包含所有狀態)
+ */
+export async function fetchUserReviews(userId: string): Promise<{ reviews: UserReview[]; total: number }> {
+    try {
+        const response = await fetch(`${API_BASE}/reviews`, {
+            headers: { 'X-User-Id': userId }
+        });
+        if (!response.ok) {
+            console.error('[API] Failed to fetch user reviews:', response.status);
+            return { reviews: [], total: 0 };
+        }
+        return await response.json();
+    } catch (error) {
+        console.error('[API] fetchUserReviews error:', error);
+        return { reviews: [], total: 0 };
+    }
+}
+
+/**
+ * 編輯評價 (僅限 pending 或 rejected 狀態)
+ */
+export async function updateReview(
+    userId: string,
+    reviewId: number,
+    data: { rating?: number; comment?: string }
+): Promise<{ success: boolean; review?: UserReview; error?: string }> {
+    try {
+        const response = await fetch(`${API_BASE}/reviews/${reviewId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-User-Id': userId
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            return { success: true, review: result.review };
+        } else {
+            return { success: false, error: result.error || result.message };
+        }
+    } catch (error) {
+        console.error('[API] updateReview error:', error);
+        return { success: false, error: 'Network error' };
+    }
+}
+
+/**
+ * 收回已公開的評價 (變回 pending 狀態)
+ */
+export async function withdrawReview(
+    userId: string,
+    reviewId: number
+): Promise<{ success: boolean; review?: UserReview; error?: string }> {
+    try {
+        const response = await fetch(`${API_BASE}/reviews/${reviewId}/withdraw`, {
+            method: 'POST',
+            headers: { 'X-User-Id': userId }
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            return { success: true, review: result.review };
+        } else {
+            return { success: false, error: result.error || result.message };
+        }
+    } catch (error) {
+        console.error('[API] withdrawReview error:', error);
+        return { success: false, error: 'Network error' };
+    }
+}

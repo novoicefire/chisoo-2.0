@@ -14,7 +14,7 @@ import {
   UserMenu,
 } from './components';
 import { OTHER_LOCATIONS } from './data';
-import { fetchHouses, checkApiHealth, fetchFavorites, addFavorite, removeFavorite, transformFavoriteToProperty } from './services/apiService';
+import { fetchHouses, checkApiHealth, fetchFavorites, addFavorite, removeFavorite, transformFavoriteToProperty, fetchUserReviews, updateReview, withdrawReview } from './services/apiService';
 import { initLiff, liffLogout, liffLogin } from './services/liffService';
 import { syncUser } from './services/verificationService';
 import { useLocalStorage } from './hooks';
@@ -24,6 +24,7 @@ import type {
   VerificationStatus,
   UserData,
   SheetState,
+  UserReview,
 } from './types';
 import { COLORS } from './types';
 import './index.css';
@@ -41,9 +42,11 @@ function App() {
   const [userData, setUserData] = useLocalStorage<UserData | null>('userData', null);
   const [showAbout, setShowAbout] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
+  const [showReviews, setShowReviews] = useState(false);
   const [favoritesTab, setFavoritesTab] = useState<'homes' | 'life'>('homes');
   const [toast, setToast] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
+  const [userReviews, setUserReviews] = useState<UserReview[]>([]);
   const [_favoritesLoading, setFavoritesLoading] = useState(false);
   const [houses, setHouses] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
@@ -226,21 +229,43 @@ function App() {
     const handlePopState = () => {
       if (sheetState === 'full') {
         setSheetState('half');
-      } else if (selectedProp || showAbout || showFavorites) {
+      } else if (selectedProp || showAbout || showFavorites || showReviews) {
         setSelectedProp(null);
         setShowAbout(false);
         setShowFavorites(false);
+        setShowReviews(false);
         setSheetState('peek');
       }
     };
 
-    if (sheetState === 'full' || selectedProp || showAbout || showFavorites) {
+    if (sheetState === 'full' || selectedProp || showAbout || showFavorites || showReviews) {
       window.history.pushState({ panel: 'open' }, '');
     }
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [sheetState, selectedProp, showAbout, showFavorites]);
+  }, [sheetState, selectedProp, showAbout, showFavorites, showReviews]);
+
+  // 載入使用者評價
+  const loadUserReviews = async () => {
+    if (!userData?.lineUserId) return;
+    const { reviews } = await fetchUserReviews(userData.lineUserId);
+    setUserReviews(reviews);
+  };
+
+  // 編輯評價
+  const handleUpdateReview = async (reviewId: number, data: { rating: number; comment: string }) => {
+    if (!userData?.lineUserId) return false;
+    const result = await updateReview(userData.lineUserId, reviewId, data);
+    return result.success;
+  };
+
+  // 收回評價
+  const handleWithdrawReview = async (reviewId: number) => {
+    if (!userData?.lineUserId) return false;
+    const result = await withdrawReview(userData.lineUserId, reviewId);
+    return result.success;
+  };
 
   // 處理地圖標記點擊
   const handleMapSelect = (property: Property) => {
@@ -334,6 +359,12 @@ function App() {
               setShowFavorites(true);
               setSheetState('full');
             }}
+            onOpenReviews={() => {
+              setShowUserMenu(false);
+              setShowReviews(true);
+              setSheetState('full');
+              loadUserReviews();
+            }}
           />
         )}
       </AnimatePresence>
@@ -370,6 +401,12 @@ function App() {
         favoritesTab={favoritesTab}
         currentList={houses}
         setToast={setToast}
+        showReviews={showReviews}
+        setShowReviews={setShowReviews}
+        userReviews={userReviews}
+        onUpdateReview={handleUpdateReview}
+        onWithdrawReview={handleWithdrawReview}
+        onRefreshReviews={loadUserReviews}
       />
 
       {/* Toast 提示 */}

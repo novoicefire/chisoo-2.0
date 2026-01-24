@@ -85,6 +85,23 @@ export interface FavoriteItem extends Property {
     addedAt: string;
 }
 
+/** 評價狀態 */
+export type ReviewStatus = 'pending' | 'approved' | 'rejected';
+
+/** 使用者評價項目 */
+export interface UserReview {
+    review_id: number;
+    house_id: number;
+    house_name?: string;
+    house_image?: string;
+    rating: number;
+    comment: string;
+    status: ReviewStatus;
+    reject_reason: string | null;
+    created_at: string;
+    updated_at?: string;
+}
+
 /** 身份驗證狀態 */
 export type VerificationStatus = 'unverified' | 'pending' | 'verified' | 'rejected';
 

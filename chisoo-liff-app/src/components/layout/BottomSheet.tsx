@@ -8,9 +8,10 @@ import { motion, useAnimation, useDragControls } from 'framer-motion';
 import Icon from '../ui/Icon';
 import PropertyDetails from '../features/PropertyDetails';
 import FavoritesPage from '../features/FavoritesPage';
+import ReviewsPage from '../features/ReviewsPage';
 import GuideCarousel from '../features/GuideCarousel';
 import AboutContent from '../features/AboutContent';
-import type { Property, FavoriteItem, VerificationStatus, SheetState } from '../../types';
+import type { Property, FavoriteItem, VerificationStatus, SheetState, UserReview } from '../../types';
 import { COLORS } from '../../types';
 
 interface BottomSheetProps {
@@ -32,6 +33,13 @@ interface BottomSheetProps {
     favoritesTab: 'homes' | 'life';
     currentList: Property[];
     setToast: (msg: string | null) => void;
+    // 評價管理
+    showReviews: boolean;
+    setShowReviews: (show: boolean) => void;
+    userReviews: UserReview[];
+    onUpdateReview: (reviewId: number, data: { rating: number; comment: string }) => Promise<boolean>;
+    onWithdrawReview: (reviewId: number) => Promise<boolean>;
+    onRefreshReviews: () => void;
 }
 
 export const BottomSheet: React.FC<BottomSheetProps> = ({
@@ -53,6 +61,12 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
     favoritesTab,
     currentList,
     setToast,
+    showReviews,
+    setShowReviews,
+    userReviews,
+    onUpdateReview,
+    onWithdrawReview,
+    onRefreshReviews,
 }) => {
     const controls = useAnimation();
     const dragControls = useDragControls();
@@ -100,7 +114,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
             {/* 拖曳手柄 */}
             <div
                 onPointerDown={(e) => dragControls.start(e)}
-                className={`w-full flex justify-center shrink-0 cursor-grab active:cursor-grabbing touch-none z-40 bg-land transition-all ${snapState === 'full' && (selectedProperty || showAbout || showFavorites)
+                className={`w-full flex justify-center shrink-0 cursor-grab active:cursor-grabbing touch-none z-40 bg-land transition-all ${snapState === 'full' && (selectedProperty || showAbout || showFavorites || showReviews)
                         ? 'absolute top-0 opacity-0 pointer-events-none'
                         : 'pt-3 pb-2'
                     }`}
@@ -132,6 +146,18 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
                             setTimeout(() => setToast(null), 2500);
                         }}
                         initialTab={favoritesTab}
+                    />
+                ) : showReviews ? (
+                    <ReviewsPage
+                        onClose={() => setShowReviews(false)}
+                        reviews={userReviews}
+                        onUpdate={onUpdateReview}
+                        onWithdraw={onWithdrawReview}
+                        onRefresh={onRefreshReviews}
+                        onToast={(msg) => {
+                            setToast(msg);
+                            setTimeout(() => setToast(null), 2500);
+                        }}
                     />
                 ) : selectedProperty ? (
                     <PropertyDetails

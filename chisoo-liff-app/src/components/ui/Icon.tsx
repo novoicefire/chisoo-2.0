@@ -34,6 +34,10 @@ import {
     Home,
     Briefcase,
     ChevronRight,
+    MessageSquare,
+    Edit,
+    RotateCcw,
+    AlertTriangle,
     type LucideProps,
 } from 'lucide-react';
 
@@ -78,6 +82,10 @@ const iconMap: Record<string, React.FC<LucideProps>> = {
     home: Home,
     briefcase: Briefcase,
     'chevron-right': ChevronRight,
+    'message-square': MessageSquare,
+    edit: Edit,
+    'rotate-ccw': RotateCcw,
+    'alert-triangle': AlertTriangle,
 };
 
 interface IconProps {
