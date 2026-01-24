@@ -53,9 +53,10 @@ RICH_MENU_CONFIG = {
             "action": {"type": "postback", "data": "action=show_fav"}
         },
         # 中下：評價系統 (暫時停用 - 重新設計中)
+        # 中下：評價系統 (開啟評價管理)
         {
             "bounds": {"x": 400, "y": 405, "width": 400, "height": 405},
-            "action": {"type": "postback", "data": "action=coming_soon&feature=review"}
+            "action": {"type": "uri", "uri": "https://liff.line.me/2008803154-R8zX1GgB?action=reviews"}
         },
         # 右下：地圖式搜尋 (開啟 LIFF 網頁)
         {

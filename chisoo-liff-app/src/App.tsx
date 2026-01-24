@@ -146,29 +146,40 @@ function App() {
 
     const urlParams = new URLSearchParams(window.location.search);
     const propertyId = urlParams.get('propertyId');
+    const action = urlParams.get('action');
 
-    if (!propertyId) return;
+    // 處理 action=reviews (評價管理)
+    if (action === 'reviews') {
+      deepLinkProcessed.current = true;
+      setShowReviews(true);
+      setSheetState('full');
+      loadUserReviews(); // 載入評價資料
+      return;
+    }
 
-    deepLinkProcessed.current = true;
+    // 處理 propertyId (房源詳情)
+    if (propertyId) {
+      deepLinkProcessed.current = true;
 
-    const findPropertyById = (id: string) => {
-      const fromHouses = houses.find((p: Property) => String(p.id) === id);
-      if (fromHouses) return { ...fromHouses, type: 'housing' as const };
+      const findPropertyById = (id: string) => {
+        const fromHouses = houses.find((p: Property) => String(p.id) === id);
+        if (fromHouses) return { ...fromHouses, type: 'housing' as const };
 
-      const fromOther = OTHER_LOCATIONS.find((o) => String(o.id) === id);
-      if (fromOther) return fromOther;
+        const fromOther = OTHER_LOCATIONS.find((o) => String(o.id) === id);
+        if (fromOther) return fromOther;
 
-      return null;
-    };
+        return null;
+      };
 
-    const targetProperty = findPropertyById(propertyId);
+      const targetProperty = findPropertyById(propertyId);
 
-    if (targetProperty) {
-      setSelectedProp(targetProperty);
-      setSheetState('half');
-      setShowAbout(false);
-    } else {
-      console.warn(`[Deep Linking] 找不到 ID 為 ${propertyId} 的房源`);
+      if (targetProperty) {
+        setSelectedProp(targetProperty);
+        setSheetState('half');
+        setShowAbout(false);
+      } else {
+        console.warn(`[Deep Linking] 找不到 ID 為 ${propertyId} 的房源`);
+      }
     }
   }, [loading, houses]);
 
