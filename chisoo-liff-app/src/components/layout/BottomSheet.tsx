@@ -81,18 +81,48 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
         controls.start(snapState);
     }, [snapState, controls]);
 
-    const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: { offset: { y: number }; velocity: { y: number } }) => {
-        const offset = info.offset.y;
+    const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: { point: { y: number }; velocity: { y: number } }) => {
         const velocity = info.velocity.y;
+        const currentY = info.point.y;
+        const windowHeight = window.innerHeight;
+        
+        // 將目前 Y 座標轉換為視窗高度百分比 (0-100)
+        const currentVh = (currentY / windowHeight) * 100;
 
-        if (velocity < -500 || offset < -100) {
-            if (snapState === 'peek') setSnapState('half');
-            else if (snapState === 'half') setSnapState('full');
-        } else if (velocity > 500 || offset > 100) {
-            if (snapState === 'full') setSnapState('half');
-            else if (snapState === 'half') setSnapState('peek');
+        // 定義錨點 (對應 styles 中的 vh 值)
+        const anchors = {
+            full: 0,
+            half: 55,
+            peek: 85
+        };
+
+        // 快速滑動判定 (Velocity-based)
+        if (Math.abs(velocity) > 500) {
+            if (velocity < 0) {
+                // 向上滑
+                if (snapState === 'peek') setSnapState('half');
+                else if (snapState === 'half') setSnapState('full');
+                else controls.start('full');
+            } else {
+                // 向下滑
+                if (snapState === 'full') setSnapState('half');
+                else if (snapState === 'half') setSnapState('peek');
+                else controls.start('peek');
+            }
         } else {
-            controls.start(snapState);
+            // 慢速拖曳位置判定 (Position-based)
+            // 找出距離目前位置最近的錨點
+            const distFull = Math.abs(currentVh - anchors.full);
+            const distHalf = Math.abs(currentVh - anchors.half);
+            const distPeek = Math.abs(currentVh - anchors.peek);
+
+            if (distFull < distHalf && distFull < distPeek) {
+                setSnapState('full');
+            } else if (distHalf < distPeek) {
+                setSnapState('half');
+            } else {
+                setSnapState('peek');
+            }
         }
     };
 
@@ -102,12 +132,12 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
             dragControls={dragControls}
             dragListener={false}
             dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={0.2}
+            dragElastic={0.05}
             onDragEnd={handleDragEnd}
             animate={controls}
             variants={variants}
             initial="peek"
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            transition={{ type: 'spring', damping: 32, stiffness: 300 }}
             className={`fixed bottom-0 left-0 right-0 z-30 w-full h-dvh rounded-t-[24px] shadow-[0_-8px_30px_rgba(78,60,46,0.15)] overflow-hidden flex flex-col bg-land ${snapState === 'full' ? 'rounded-t-none' : ''
                 }`}
         >
