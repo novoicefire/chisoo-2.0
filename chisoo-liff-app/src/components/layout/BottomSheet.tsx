@@ -81,44 +81,53 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
         controls.start(snapState);
     }, [snapState, controls]);
 
-    const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: { point: { y: number }; velocity: { y: number } }) => {
+    const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: { offset: { y: number }; velocity: { y: number } }) => {
         const velocity = info.velocity.y;
-        const currentY = info.point.y;
+        const offsetY = info.offset.y;
         const windowHeight = window.innerHeight;
         
-        // 將目前 Y 座標轉換為視窗高度百分比 (0-100)
-        const currentVh = (currentY / windowHeight) * 100;
+        // 將 offset 轉換為 vh 單位
+        const offsetVh = (offsetY / windowHeight) * 100;
 
-        // 定義錨點 (對應 styles 中的 vh 值)
+        // 目前狀態對應的 vh 位置
+        const stateVh: Record<SheetState, number> = {
+            full: 0,
+            half: 55,
+            peek: 85
+        };
+        
+        // 計算預期結束位置 (目前狀態 + 拖曳位移)
+        const targetVh = stateVh[snapState] + offsetVh;
+
+        // 定義錨點
         const anchors = {
             full: 0,
             half: 55,
             peek: 85
         };
 
-        // 快速滑動判定 (Velocity-based)
-        if (Math.abs(velocity) > 500) {
+        // 快速滑動判定 (提高閾值，避免誤觸)
+        if (Math.abs(velocity) > 800) {
             if (velocity < 0) {
-                // 向上滑
+                // 向上滑 - 切換到更高的狀態
                 if (snapState === 'peek') setSnapState('half');
                 else if (snapState === 'half') setSnapState('full');
                 else controls.start('full');
             } else {
-                // 向下滑
+                // 向下滑 - 切換到更低的狀態
                 if (snapState === 'full') setSnapState('half');
                 else if (snapState === 'half') setSnapState('peek');
                 else controls.start('peek');
             }
         } else {
-            // 慢速拖曳位置判定 (Position-based)
-            // 找出距離目前位置最近的錨點
-            const distFull = Math.abs(currentVh - anchors.full);
-            const distHalf = Math.abs(currentVh - anchors.half);
-            const distPeek = Math.abs(currentVh - anchors.peek);
+            // 慢速拖曳：根據預期位置吸附至最近錨點
+            const distFull = Math.abs(targetVh - anchors.full);
+            const distHalf = Math.abs(targetVh - anchors.half);
+            const distPeek = Math.abs(targetVh - anchors.peek);
 
-            if (distFull < distHalf && distFull < distPeek) {
+            if (distFull <= distHalf && distFull <= distPeek) {
                 setSnapState('full');
-            } else if (distHalf < distPeek) {
+            } else if (distHalf <= distPeek) {
                 setSnapState('half');
             } else {
                 setSnapState('peek');
