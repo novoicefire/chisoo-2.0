@@ -104,6 +104,123 @@ endblock %} {% block extra_css %}
       </div>
       {% endif %}
     </div>
+
+    <!-- User Weights -->
+    <div class="card" style="margin-top: 20px">
+      <div class="card-header">
+        <div class="card-title">
+          <i class="fa-solid fa-scale-balanced"></i> 價值觀權重 (Weights)
+        </div>
+      </div>
+      {% if session and session.weights %}
+
+      <!-- Radar Chart Container -->
+      <div style="position: relative; height: 300px; margin-bottom: 20px">
+        <canvas id="weightRadarChart"></canvas>
+      </div>
+      <!-- JSON Data for Chart (avoids HTML attribute escaping issues) -->
+      <script type="application/json" id="weights-data">
+        {{ session.weights | tojson | safe }}
+      </script>
+
+      <!-- Data Table -->
+      <table class="table table-bordered">
+        <thead>
+          <tr>
+            <th>維度</th>
+            <th>數值</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for k, v in session.weights.items() %}
+          <tr>
+            <!-- Mapping labels for display -->
+            {% set label_map = {'budget': '預算', 'location': '地段',
+            'features': '設施', 'landlord': '房東', 'type': '房型', 'keyword':
+            '關鍵字'} %}
+            <td>{{ label_map.get(k, k) }}</td>
+            <td style="font-weight: bold; color: #6366f1">{{ v }}%</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <!-- Render Chart Script -->
+      <script>
+        document.addEventListener("DOMContentLoaded", function () {
+          const dataElement = document.getElementById("weights-data");
+          if (!dataElement) return;
+
+          let weights;
+          try {
+            weights = JSON.parse(dataElement.textContent);
+          } catch (e) {
+            console.error("Failed to parse weights data", e);
+            return;
+          }
+
+          const canvas = document.getElementById("weightRadarChart");
+          if (!canvas) return;
+
+          // Labels mapping
+          const labelMap = {
+            budget: "預算",
+            location: "地段",
+            features: "設施",
+            landlord: "房東",
+            type: "房型",
+            keyword: "關鍵字",
+          };
+
+          const labels = Object.keys(weights).map((k) => labelMap[k] || k);
+          const data = Object.values(weights);
+
+          const ctx = canvas.getContext("2d");
+          new Chart(ctx, {
+            type: "radar",
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: "價值觀分佈",
+                  data: data,
+                  fill: true,
+                  backgroundColor: "rgba(99, 102, 241, 0.2)",
+                  borderColor: "rgb(99, 102, 241)",
+                  pointBackgroundColor: "rgb(99, 102, 241)",
+                  pointBorderColor: "#fff",
+                  pointHoverBackgroundColor: "#fff",
+                  pointHoverBorderColor: "rgb(99, 102, 241)",
+                },
+              ],
+            },
+            options: {
+              maintainAspectRatio: false,
+              elements: {
+                line: { borderWidth: 3 },
+              },
+              scales: {
+                r: {
+                  angleLines: { display: true },
+                  suggestedMin: 0,
+                  suggestedMax: 100,
+                  ticks: { display: false }, // Hide numbers on axis
+                },
+              },
+              plugins: {
+                legend: { display: false },
+              },
+            },
+          });
+        });
+      </script>
+
+      {% else %}
+      <div style="color: #9ca3af; text-align: center; padding: 20px">
+        尚無權重資料
+      </div>
+      {% endif %}
+    </div>
   </div>
 
   <!-- Right: AI Logs -->
@@ -173,4 +290,6 @@ endblock %} {% block extra_css %}
     </div>
   </div>
 </div>
+{% endblock %} {% block scripts %}
+<!-- Chart script is already in the content block -->
 {% endblock %}

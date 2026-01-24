@@ -109,6 +109,11 @@ class SessionService:
     def is_testing(user_id: str) -> bool:
         """檢查使用者是否處於測試模式"""
         return SessionService.get_status(user_id) == "TESTING"
+
+    @staticmethod
+    def is_weight_selection(user_id: str) -> bool:
+        """檢查使用者是否處於權重選擇模式"""
+        return SessionService.get_status(user_id) == "WEIGHT_SELECTION"
     
     @staticmethod
     def start_test(user_id: str, keep_progress: bool = False) -> UserSession:
@@ -127,6 +132,60 @@ class SessionService:
         
         if not keep_progress:
             session.collected_data = {}
+        
+        session.last_updated = datetime.utcnow()
+        db_session.commit()
+        
+        return session
+
+    @staticmethod
+    def start_weight_selection(user_id: str) -> UserSession:
+        """
+        開始權重選擇模式 (新流程第一步)
+        """
+        session = SessionService.get_or_create_session(user_id)
+        session.status = "WEIGHT_SELECTION"
+        session.weight_stage = 1
+        session.weight_answers = {}
+        session.weights = {}
+        session.collected_data = {}  # Reset AI data too
+        
+        session.last_updated = datetime.utcnow()
+        db_session.commit()
+        
+        return session
+
+    @staticmethod
+    def submit_weight_answer(user_id: str, question_id: int, answer: str) -> int:
+        """
+        提交權重選擇答案
+        Returns:
+            int: 下一題的題號 (若已完成則回傳 7)
+        """
+        session = SessionService.get_or_create_session(user_id)
+        
+        # Update answers
+        current_answers = dict(session.weight_answers) if session.weight_answers else {}
+        current_answers[str(question_id)] = answer
+        session.weight_answers = current_answers
+        
+        # Advance stage
+        next_stage = question_id + 1
+        session.weight_stage = next_stage
+        session.last_updated = datetime.utcnow()
+        db_session.commit()
+        
+        return next_stage
+
+    @staticmethod
+    def finish_weight_selection(user_id: str, final_weights: dict) -> UserSession:
+        """
+        完成權重選擇，進入 AI 測試模式
+        """
+        session = SessionService.get_or_create_session(user_id)
+        session.weights = final_weights
+        session.status = "TESTING"  # Transition to AI Chat
+        session.weight_stage = 0
         
         session.last_updated = datetime.utcnow()
         db_session.commit()

@@ -337,86 +337,88 @@ endblock %} {% block extra_css %}
 </div>
 {% endblock %} {% block scripts %}
 <script>
-  // Persona Distribution Chart
-  const ctx = document.getElementById("personaChart");
-  if (ctx) {
-    new Chart(ctx, {
-      type: "doughnut",
-      data: {
-        labels: JSON.parse("{{ persona_labels | tojson | safe }}"),
-        datasets: [
-          {
-            label: "使用者分佈",
-            data: JSON.parse("{{ persona_data | tojson | safe }}"),
-            backgroundColor: [
-              "#3b82f6",
-              "#10b981",
-              "#f59e0b",
-              "#ef4444",
-              "#8b5cf6",
-            ],
-            borderWidth: 0,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { position: "bottom" },
+  document.addEventListener("DOMContentLoaded", function() {
+    // Persona Distribution Chart
+    const ctx = document.getElementById("personaChart");
+    if (ctx) {
+      new Chart(ctx, {
+        type: "doughnut",
+        data: {
+          labels: {{ persona_labels | tojson | safe }},
+          datasets: [
+            {
+              label: "使用者分佈",
+              data: {{ persona_data | tojson | safe }},
+              backgroundColor: [
+                "#3b82f6",
+                "#10b981",
+                "#f59e0b",
+                "#ef4444",
+                "#8b5cf6",
+              ],
+              borderWidth: 0,
+            },
+          ],
         },
-      },
-    });
-  }
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: "bottom" },
+          },
+        },
+      });
+    }
 
-  // User Growth Chart
-  const ctxGrowth = document.getElementById("growthChart");
-  if (ctxGrowth) {
-    const growthLabels = JSON.parse("{{ growth_labels | tojson | safe }}");
-    const growthData = JSON.parse("{{ growth_data | tojson | safe }}");
-    console.log("Growth Data:", growthLabels, growthData);
+    // User Growth Chart
+    const ctxGrowth = document.getElementById("growthChart");
+    if (ctxGrowth) {
+      const growthLabels = {{ growth_labels | tojson | safe }};
+      const growthData = {{ growth_data | tojson | safe }};
+      console.log("Growth Data:", growthLabels, growthData);
 
-    new Chart(ctxGrowth, {
-      type: "line",
-      data: {
-        labels: growthLabels,
-        datasets: [
-          {
-            label: "新增用戶",
-            data: JSON.parse("{{ growth_data | tojson | safe }}"),
-            borderColor: "#8b5cf6",
-            backgroundColor: "rgba(139, 92, 246, 0.1)",
-            tension: 0.4,
-            fill: true,
-            pointBackgroundColor: "#8b5cf6",
-            pointRadius: 4,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
+      new Chart(ctxGrowth, {
+        type: "line",
+        data: {
+          labels: growthLabels,
+          datasets: [
+            {
+              label: "新增用戶",
+              data: growthData,
+              borderColor: "#8b5cf6",
+              backgroundColor: "rgba(139, 92, 246, 0.1)",
+              tension: 0.4,
+              fill: true,
+              pointBackgroundColor: "#8b5cf6",
+              pointRadius: 4,
+            },
+          ],
         },
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: {
-              stepSize: 1,
-              precision: 0,
-            },
-            grid: {
-              borderDash: [5, 5],
-            },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
           },
-          x: {
-            grid: {
-              display: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                stepSize: 1,
+                precision: 0,
+              },
+              grid: {
+                borderDash: [5, 5],
+              },
+            },
+            x: {
+              grid: {
+                display: false,
+              },
             },
           },
         },
-      },
-    });
-  }
+      });
+    }
+  });
 </script>
 {% endblock %}

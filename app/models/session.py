@@ -30,6 +30,12 @@ class UserSession(Base):
     )
     status: Mapped[str] = mapped_column(String(20), default="IDLE")
     collected_data: Mapped[dict] = mapped_column(JSON, default=dict)
+    
+    # Weight Selection Stage
+    weight_stage: Mapped[int] = mapped_column(default=0)  # 0: Not started, 1-6: In progress
+    weight_answers: Mapped[dict] = mapped_column(JSON, default=dict)  # Stores answers for Q1-Q6
+    weights: Mapped[dict] = mapped_column(JSON, default=dict)  # Final calculated weights
+    
     last_updated: Mapped[datetime] = mapped_column(
         DateTime, 
         default=datetime.utcnow,

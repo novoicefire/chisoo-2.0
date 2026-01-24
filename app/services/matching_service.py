@@ -245,7 +245,7 @@ class MatchingService:
         # 每個關鍵字 +5 分，上限 20 分
         return min(20, matches * 5)
     
-    def calculate_persona_score(self, user_data: dict, persona: Persona, raw_text: str = "") -> float:
+    def calculate_persona_score(self, user_data: dict, persona: Persona, raw_text: str = "", weights: dict = None) -> float:
         """
         計算單一人物誌的總分
         
@@ -253,10 +253,19 @@ class MatchingService:
             user_data: 使用者收集的資料
             persona: 人物誌實例
             raw_text: 使用者對話原文 (用於關鍵字匹配)
+            weights: 使用者自訂權重 (若無則使用預設)
             
         Returns:
             float: 加權總分
         """
+        # 決定使用的權重
+        if weights:
+            # 正規化權重 (除以 50 讓數值接近預設的 1.0~1.5)
+            # 例如 70 分 -> 1.4
+            use_weights = {k: v / 50.0 for k, v in weights.items()}
+        else:
+            use_weights = self.WEIGHTS
+
         # 取得各維度分數
         s_budget = self.calculate_budget_score(
             user_data.get("budget"), persona
@@ -275,25 +284,26 @@ class MatchingService:
         )
         s_keyword = self.calculate_keyword_score(raw_text, persona)
         
-        # 加權計算
+        # 加權計算 (防呆：若 key 不存在則用 1.0)
         total = (
-            s_budget * self.WEIGHTS["budget"] +
-            s_location * self.WEIGHTS["location"] +
-            s_features * self.WEIGHTS["features"] +
-            s_landlord * self.WEIGHTS["landlord"] +
-            s_type * self.WEIGHTS["type"] +
-            s_keyword * self.WEIGHTS["keyword"]
+            s_budget * use_weights.get("budget", 1.0) +
+            s_location * use_weights.get("location", 1.0) +
+            s_features * use_weights.get("features", 1.0) +
+            s_landlord * use_weights.get("landlord", 1.0) +
+            s_type * use_weights.get("type", 1.0) +
+            s_keyword * use_weights.get("keyword", 0.5)
         )
         
         return total
     
-    def match(self, user_data: dict, raw_text: str = "") -> list[dict]:
+    def match(self, user_data: dict, raw_text: str = "", weights: dict = None) -> list[dict]:
         """
         計算所有人物誌分數並排序
         
         Args:
             user_data: 使用者收集的資料
             raw_text: 使用者對話原文
+            weights: 使用者自訂權重
             
         Returns:
             list[dict]: 排序後的結果列表
@@ -302,13 +312,15 @@ class MatchingService:
         personas = self.load_active_personas()
         
         print(f"🎯 開始匹配，使用者資料: {user_data}")
+        if weights:
+            print(f"⚖️ 使用自訂權重: {weights}")
         
         # 批次預先計算設施匹配 (單次 AI 呼叫)
         self.batch_prepare_features_match(user_data, personas)
         
         results = []
         for persona in personas:
-            score = self.calculate_persona_score(user_data, persona, raw_text)
+            score = self.calculate_persona_score(user_data, persona, raw_text, weights)
             results.append({
                 "persona": persona,
                 "score": round(score, 2)
@@ -358,3 +370,177 @@ class MatchingService:
         ).order_by(
             House.avg_rating.desc()
         ).offset(offset).limit(limit).all()
+    
+    def get_recommended_houses_with_scores(
+        self, 
+        persona_id: str, 
+        limit: int = 5, 
+        offset: int = 0
+    ) -> list[dict]:
+        """
+        取得該人物誌的推薦房源（含匹配分數）
+        
+        Args:
+            persona_id: 人物誌 ID
+            limit: 數量限制
+            offset: 偏移量 (用於分頁)
+            
+        Returns:
+            list[dict]: 房源列表，包含 house 物件與 match_score
+                [{"house": House, "match_score": 85, "recommendation_reason": "..."}, ...]
+        """
+        # 取得 Persona 資訊
+        persona = db_session.query(Persona).filter_by(persona_id=persona_id).first()
+        
+        # 查詢適合的房源
+        houses = db_session.query(House).filter(
+            House.is_active == True
+        ).order_by(
+            House.avg_rating.desc()
+        ).offset(offset).limit(limit + 10).all()  # 多取一些用於篩選
+        
+        if not houses:
+            return []
+        
+        results = []
+        for house in houses:
+            # 計算匹配分數
+            score = self._calculate_house_match_score(house, persona)
+            
+            # 生成推薦理由
+            reason = self._generate_recommendation_reason(house, persona, score)
+            
+            results.append({
+                "house": house,
+                "match_score": score,
+                "recommendation_reason": reason
+            })
+        
+        # 依匹配分數排序
+        results.sort(key=lambda x: x["match_score"], reverse=True)
+        
+        # 取前 limit 個
+        return results[:limit]
+    
+    def _calculate_house_match_score(self, house: House, persona: Optional[Persona]) -> int:
+        """
+        計算單一房源與 Persona 的匹配分數
+        
+        Args:
+            house: 房源實例
+            persona: 人物誌實例
+            
+        Returns:
+            int: 匹配分數 (0-100)
+        """
+        if not persona:
+            # 沒有 Persona，基於房源品質評分
+            base_score = 70
+            if house.avg_rating >= 4.5:
+                base_score += 15
+            elif house.avg_rating >= 4.0:
+                base_score += 10
+            elif house.avg_rating >= 3.5:
+                base_score += 5
+            return min(100, base_score)
+        
+        score = 50  # 基礎分
+        
+        # 1. 類型匹配 (category_tag)
+        if house.category_tag == persona.persona_id:
+            score += 25
+        
+        # 2. 租金區間匹配
+        rent_min, rent_max = persona.get_rent_range()
+        if rent_min <= house.rent <= rent_max:
+            score += 15
+        elif house.rent < rent_min:
+            score += 5  # 比預期便宜也不錯
+        
+        # 3. 設施匹配
+        required_features = persona.get_required_features()
+        house_features = house.features or {}
+        
+        matched_features = 0
+        for feature in required_features:
+            # 簡單的關鍵字匹配
+            feature_lower = feature.lower()
+            for house_feat_key, house_feat_val in house_features.items():
+                if house_feat_val and feature_lower in house_feat_key.lower():
+                    matched_features += 1
+                    break
+        
+        if required_features:
+            feature_ratio = matched_features / len(required_features)
+            score += int(feature_ratio * 10)
+        
+        # 4. 評分加成
+        if house.avg_rating >= 4.5:
+            score += 10
+        elif house.avg_rating >= 4.0:
+            score += 5
+        
+        return min(100, max(0, score))
+    
+    def _generate_recommendation_reason(
+        self, 
+        house: House, 
+        persona: Optional[Persona], 
+        score: int
+    ) -> str:
+        """
+        生成推薦理由
+        
+        Args:
+            house: 房源實例
+            persona: 人物誌實例
+            score: 匹配分數
+            
+        Returns:
+            str: 推薦理由文字
+        """
+        reasons = []
+        
+        # 評分相關
+        if house.avg_rating >= 4.5:
+            reasons.append("⭐ 社群高評價")
+        elif house.avg_rating >= 4.0:
+            reasons.append("👍 好評推薦")
+        
+        # 設施相關
+        features = house.features or {}
+        feature_highlights = []
+        
+        if features.get("garbage_service"):
+            feature_highlights.append("子母車")
+        if features.get("elevator"):
+            feature_highlights.append("電梯")
+        if features.get("security"):
+            feature_highlights.append("門禁")
+        if features.get("balcony"):
+            feature_highlights.append("陽台")
+        if features.get("parking"):
+            feature_highlights.append("停車位")
+        
+        if feature_highlights:
+            reasons.append(f"🏠 {', '.join(feature_highlights[:3])}")
+        
+        # Persona 相關
+        if persona:
+            if house.category_tag == persona.persona_id:
+                reasons.append(f"🎯 適合 {persona.name}")
+            
+            rent_min, rent_max = persona.get_rent_range()
+            if rent_min <= house.rent <= rent_max:
+                reasons.append("💰 符合預算")
+        
+        # 匹配度
+        if score >= 90:
+            reasons.insert(0, "🔥 極度推薦")
+        elif score >= 80:
+            reasons.insert(0, "✨ 強力推薦")
+        
+        if not reasons:
+            reasons.append("📍 埔里優質房源")
+        
+        return " | ".join(reasons[:3])

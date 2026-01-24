@@ -30,6 +30,7 @@ class Config:
     
     # === 外部服務設定 ===
     BASE_URL: str = os.getenv("BASE_URL", "https://chiran.online")
+    LIFF_URL: str = os.getenv("LIFF_URL", "https://liff.line.me/2007168952-ZLmwxL6k")
     GOOGLE_MAPS_API_KEY: str = os.getenv("GOOGLE_MAPS_API_KEY", "")
     
     # === Flask 設定 ===

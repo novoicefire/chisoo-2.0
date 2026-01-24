@@ -33,6 +33,7 @@ from app.config import config
 from app.services.session_service import SessionService
 from app.services.ollama_service import OllamaService
 from app.services.matching_service import MatchingService
+from app.services.weight_service import WeightService
 
 # 建立 Flask 應用程式
 app = Flask(__name__)
@@ -92,8 +93,12 @@ def handle_text_message(event: MessageEvent):
         
         # 檢查使用者狀態
         is_testing = SessionService.is_testing(user_id)
+        is_weight_selection = SessionService.is_weight_selection(user_id)
         
-        if is_testing:
+        if is_weight_selection:
+            # 權重選擇模式：不處理文字訊息，提示使用按鈕
+            reply_text(line_bot_api, reply_token, "請點擊上方的按鈕進行選擇喔！")
+        elif is_testing:
             # 測試模式：處理 AI 對話
             handle_testing_message(line_bot_api, reply_token, user_id, user_message)
         else:
@@ -148,7 +153,11 @@ def handle_start_analysis(line_bot_api, reply_token, user_id, collected_data):
     # 3. 背景執行匹配演算法
     def run_matching_async():
         try:
-            results = matching_service.match(collected_data)
+            # 取得該 User 的自訂權重
+            session = SessionService.get_or_create_session(user_id)
+            user_weights = session.weights
+            
+            results = matching_service.match(collected_data, weights=user_weights)
             
             if results:
                 best_match = results[0]
@@ -223,7 +232,11 @@ def handle_postback(event: PostbackEvent):
             app.logger.warning(f"無法顯示 Loading 動畫: {e}")
         
         # 根據 action 執行對應功能
-        if action == "start_test":
+        if action == "answer_weight":
+            q_idx = int(params.get("q", ["0"])[0])
+            choice = params.get("choice", [""])[0]
+            handle_weight_answer(line_bot_api, reply_token, user_id, q_idx, choice)
+        elif action == "start_test":
             handle_start_test(line_bot_api, reply_token, user_id)
         elif action == "show_ranking":
             handle_show_ranking(line_bot_api, reply_token)
@@ -281,7 +294,7 @@ def handle_start_test(line_bot_api, reply_token, user_id):
     if has_progress:
         # 詢問是否繼續
         message = (
-            "嗨！Chi Soo 發現您上次的諮詢進行到一半。\n\n"
+            "嗨！Chi Soo 發現您上次的諾詢進行到一半。\n\n"
             "要繼續嗎？還是重新開始？"
         )
         # TODO: 之後改成 Flex Message 帶按鈕
@@ -292,16 +305,201 @@ def handle_start_test(line_bot_api, reply_token, user_id):
             "「我預算大概 5000，希望靠近市區」"
         )
     else:
-        # 開始新測驗
-        SessionService.start_test(user_id)
-        message = (
-            "🏠 開始找房測驗！\n\n"
-            "Hi～我是 Chi Soo 🦔\n"
-            "接下來我會問你幾個問題，幫你找到最適合的租屋類型！\n\n"
-            "首先，請告訴我你的預算上限是多少呢？\n"
-            "（例如：3000、5000、不限）"
+        # 開始新測驗 - 進入權重選擇關卡 (新增流程說明)
+        SessionService.start_weight_selection(user_id)
+        
+        # 發送流程說明 + 第一題
+        intro_text = TextMessage(text=(
+            "🧒 開始剖析你的租屋人格！\n\n"
+            "接下來分兩步驟進行：\n\n"
+            "👉 Step 1: 租屋價值觀快問快答（6 題）\n"
+            "　→ 了解你在乎哪些面向\n\n"
+            "👉 Step 2: 具體條件問答（AI 對話）\n"
+            "　→ 收集預算、地點、房型等細節\n\n"
+            "全部完成後，我會為你診斷專屬的「租屋人格」🎯\n"
+            "準備好了就開始吧！"
+        ))
+        
+        question = WeightService.get_question(1)
+        flex_msg = create_weight_question_flex(question, 1, 6)
+        
+        line_bot_api.reply_message(
+            ReplyMessageRequest(
+                reply_token=reply_token,
+                messages=[
+                    intro_text,
+                    FlexMessage(alt_text="Step 1: 租屋價值觀 (1/6)", contents=flex_msg)
+                ]
+            )
         )
-        reply_text(line_bot_api, reply_token, message)
+
+
+def handle_weight_answer(line_bot_api, reply_token, user_id, q_idx, choice):
+    """處理權重選擇答案"""
+    # 紀錄答案並取得下一關
+    next_stage = SessionService.submit_weight_answer(user_id, q_idx, choice)
+    
+    if next_stage <= 6:
+        # 還有下一題
+        question = WeightService.get_question(next_stage)
+        flex_msg = create_weight_question_flex(question, next_stage, 6)
+        
+        line_bot_api.reply_message(
+            ReplyMessageRequest(
+                reply_token=reply_token,
+                messages=[FlexMessage(alt_text=f"租屋價值觀大哉問 ({next_stage}/6)", contents=flex_msg)]
+            )
+        )
+    else:
+        # 完成所有題目 -> 結算並進入 AI 聊天
+        session = SessionService.get_or_create_session(user_id)
+        weights = WeightService.calculate_weights(session.weight_answers)
+        chart_url = WeightService.generate_radar_chart_url(weights)
+        summary = WeightService.generate_summary_text(weights)
+        
+        # 儲存並轉移狀態
+        SessionService.finish_weight_selection(user_id, weights)
+        SessionService.start_test(user_id, keep_progress=True) # 確保狀態是 TESTING 且保留 weights
+        
+        # 1. 發送雷達圖與總結 (調整價值觀標題)
+        chart_flex = create_chart_summary_flex(chart_url, summary)
+        
+        # 2. 發送 AI 聊天的開場白 (Step 2 開始)
+        intro_msg = TextMessage(text=(
+            "🚀 進入 Step 2：具體條件問答\n\n"
+            "首先，請問你的 💰 預算上限 是多少呢？\n"
+            "（例如：5000、8000、不限）"
+        ))
+        
+        line_bot_api.reply_message(
+            ReplyMessageRequest(
+                reply_token=reply_token,
+                messages=[
+                    FlexMessage(alt_text="Step 1 完成！你的租屋價值觀", contents=chart_flex),
+                    intro_msg
+                ]
+            )
+        )
+
+
+def create_weight_question_flex(question, current, total):
+    """建立權重二選一 Flex Message (Carousel 版本)"""
+    progress = f"{current}/{total}"
+    
+    # Bubble 1: 題目
+    question_bubble = {
+        "type": "bubble",
+        "size": "kilo",
+        "header": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {"type": "text", "text": f"租屋價值觀 ({progress})", "size": "xs", "color": "#6366F1", "weight": "bold"},
+                {"type": "text", "text": question["title"], "size": "lg", "weight": "bold", "color": "#1f2937", "margin": "sm"}
+            ],
+            "backgroundColor": "#EEF2FF",
+            "paddingAll": "15px"
+        },
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {"type": "text", "text": question["question"], "size": "md", "color": "#374151", "wrap": True, "margin": "md"},
+            ],
+             "paddingAll": "20px"
+        }
+    }
+
+    # Bubble 2 & 3: 選項
+    bubbles = [question_bubble]
+    
+    colors = ["#10B981", "#F59E0B"] # Green, Amber
+    
+    for i, opt in enumerate(question["options"]):
+        color = colors[i % 2]
+        option_label = "選項 A" if i == 0 else "選項 B"
+        
+        opt_bubble = {
+            "type": "bubble",
+            "size": "kilo",
+            "header": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {"type": "text", "text": option_label, "weight": "bold", "color": "#FFFFFF", "size": "md"}
+                ],
+                "backgroundColor": color,
+                "paddingAll": "10px"
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {"type": "text", "text": opt["label"], "wrap": True, "size": "md", "color": "#333333", "weight": "bold"}
+                ],
+                "paddingAll": "20px"
+            },
+            "footer": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "button",
+                        "action": {
+                            "type": "postback",
+                            "label": "選擇此方案",
+                            "data": f"action=answer_weight&q={current}&choice={opt['value']}",
+                            "displayText": f"我選 {opt['label']}"
+                        },
+                        "style": "primary",
+                        "color": color
+                    }
+                ],
+                "paddingAll": "10px"
+            }
+        }
+        bubbles.append(opt_bubble)
+        
+    carousel_json = {
+        "type": "carousel",
+        "contents": bubbles
+    }
+        
+    return FlexContainer.from_dict(carousel_json)
+
+
+def create_chart_summary_flex(chart_url, summary):
+    """建立雷達圖結果 Flex Message (價值觀分佈)"""
+    flex_json = {
+        "type": "bubble",
+        "size": "kilo",
+        "header": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {"type": "text", "text": "✅ Step 1 完成", "weight": "bold", "size": "xl", "color": "#ffffff"}
+            ],
+            "backgroundColor": "#10B981",
+            "paddingAll": "15px"
+        },
+        "hero": {
+            "type": "image",
+            "url": chart_url,
+            "size": "full",
+            "aspectRatio": "1:1",
+            "aspectMode": "cover"
+        },
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {"type": "text", "text": "📊 你的租屋價值觀分佈", "weight": "bold", "size": "md", "color": "#1f2937"},
+                {"type": "text", "text": summary, "wrap": True, "size": "sm", "color": "#4b5563", "margin": "md", "lineSpacing": "5px"}
+            ],
+            "paddingAll": "15px"
+        }
+    }
+    return FlexContainer.from_dict(flex_json)
 
 
 def handle_get_result(line_bot_api, reply_token, user_id):
@@ -471,20 +669,37 @@ def handle_show_map(line_bot_api, reply_token):
 
 
 def handle_show_recommendations(line_bot_api, reply_token, user_id, persona_id):
-    """顯示推薦房源"""
-    houses = matching_service.get_recommended_houses(persona_id, limit=5)
+    """顯示推薦房源 - Flex Message Carousel 版本"""
+    from app.models.persona import Persona
+    from app.models import db_session
     
-    if houses:
-        message = f"🏠 為您推薦以下房源：\n\n"
-        for i, house in enumerate(houses, 1):
-            message += f"{i}. {house.name}\n"
-            message += f"   💰 ${house.rent}/月 | ⭐{house.avg_rating:.1f}\n"
-            message += f"   📍 {house.address or '地址未提供'}\n\n"
-        message += "點擊房源名稱可查看詳情！"
-    else:
-        message = "目前沒有找到適合的房源，請稍後再試。"
+    # 取得推薦房源（含匹配分數）
+    houses_with_scores = matching_service.get_recommended_houses_with_scores(persona_id, limit=5)
     
-    reply_text(line_bot_api, reply_token, message)
+    if not houses_with_scores:
+        reply_text(line_bot_api, reply_token, 
+            "📭 目前沒有找到適合的房源～\n\n"
+            "請稍後再試，或調整您的租屋需求！"
+        )
+        return
+    
+    # 取得 Persona 資訊用於生成推薦理由
+    persona = db_session.query(Persona).filter_by(persona_id=persona_id).first()
+    
+    # 建立精美的房源 Carousel
+    recommendation_carousel = create_recommendation_carousel(
+        houses_with_scores, 
+        persona, 
+        persona_id, 
+        offset=0
+    )
+    
+    line_bot_api.reply_message(
+        ReplyMessageRequest(
+            reply_token=reply_token,
+            messages=[FlexMessage(alt_text="🏠 為您推薦的房源", contents=recommendation_carousel)]
+        )
+    )
 
 
 def handle_resume_test(line_bot_api, reply_token, user_id):
@@ -806,9 +1021,9 @@ def create_ranking_carousel(houses, title, badge, header_color, button_color):
                     {
                         "type": "button",
                         "action": {
-                            "type": "postback",
+                            "type": "uri",
                             "label": "查看詳情",
-                            "data": f"action=show_house_detail&house_id={house.house_id}"
+                            "uri": f"{config.LIFF_URL}?propertyId={house.house_id}"
                         },
                         "style": "primary",
                         "color": button_color,
@@ -1155,9 +1370,9 @@ def create_houses_carousel(houses, persona_id, current_offset):
                     {
                         "type": "button",
                         "action": {
-                            "type": "postback",
+                            "type": "uri",
                             "label": "詳情",
-                            "data": f"action=show_house_detail&house_id={house.house_id}"
+                            "uri": f"{config.LIFF_URL}?propertyId={house.house_id}"
                         },
                         "style": "primary",
                         "color": "#6366F1",
@@ -1204,3 +1419,225 @@ def create_houses_carousel(houses, persona_id, current_offset):
     bubbles.append(more_bubble)
     
     return FlexContainer.from_dict({"type": "carousel", "contents": bubbles})
+
+
+def create_recommendation_carousel(houses_with_scores, persona, persona_id, offset=0):
+    """
+    建立推薦房源 Carousel (含匹配分數與推薦理由)
+    
+    Args:
+        houses_with_scores: 房源列表，包含匹配分數與推薦理由
+        persona: 人物誌實例
+        persona_id: 人物誌 ID
+        offset: 偏移量 (用於分頁)
+        
+    Returns:
+        FlexContainer: Carousel 容器
+    """
+    bubbles = []
+    default_image = "https://via.placeholder.com/400x260/6366F1/FFFFFF?text=Chi+Soo"
+    
+    for item in houses_with_scores:
+        house = item["house"]
+        match_score = item["match_score"]
+        reason = item["recommendation_reason"]
+        
+        # 解析特徵標籤
+        features = house.features or {}
+        feature_tags = []
+        feature_map = {
+            "garbage_service": "🚛 子母車",
+            "elevator": "🛗 電梯",
+            "security": "🔒 門禁",
+            "balcony": "🌿 陽台",
+            "laundry": "👔 洗衣",
+            "quiet": "🤫 安靜",
+            "parking": "🅿️ 停車"
+        }
+        for key, label in feature_map.items():
+            if features.get(key):
+                feature_tags.append(label)
+        
+        # 匹配度顏色
+        if match_score >= 90:
+            match_color = "#EF4444"  # 紅色
+            match_emoji = "🔥"
+        elif match_score >= 80:
+            match_color = "#F59E0B"  # 橙色
+            match_emoji = "⭐"
+        elif match_score >= 70:
+            match_color = "#10B981"  # 綠色
+            match_emoji = "✨"
+        else:
+            match_color = "#6366F1"  # 紫色
+            match_emoji = "💡"
+        
+        # 特徵標籤 (最多顯示 3 個)
+        feature_boxes = []
+        for tag in feature_tags[:3]:
+            feature_boxes.append({
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {"type": "text", "text": tag, "size": "xxs", "color": "#6366F1", "align": "center"}
+                ],
+                "backgroundColor": "#EEF2FF",
+                "cornerRadius": "sm",
+                "paddingAll": "3px",
+                "margin": "xs"
+            })
+        
+        # 如果沒有特徵標籤，顯示房型
+        if not feature_boxes:
+            feature_boxes.append({
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {"type": "text", "text": house.room_type or "套房", "size": "xxs", "color": "#6366F1", "align": "center"}
+                ],
+                "backgroundColor": "#EEF2FF",
+                "cornerRadius": "sm",
+                "paddingAll": "3px"
+            })
+        
+        bubble = {
+            "type": "bubble",
+            "size": "kilo",
+            "hero": {
+                "type": "image",
+                "url": house.image_url or default_image,
+                "size": "full",
+                "aspectRatio": "20:13",
+                "aspectMode": "cover",
+                "action": {
+                    "type": "uri",
+                    "uri": f"{config.LIFF_URL}?propertyId={house.house_id}"
+                }
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    # 房名與匹配分數
+                    {
+                        "type": "box",
+                        "layout": "horizontal",
+                        "contents": [
+                            {"type": "text", "text": house.name, "weight": "bold", "size": "md", "flex": 4, "wrap": True},
+                            {
+                                "type": "box",
+                                "layout": "vertical",
+                                "contents": [
+                                    {"type": "text", "text": f"{match_emoji} {match_score}%", "size": "xs", "color": "#FFFFFF", "align": "center", "weight": "bold"}
+                                ],
+                                "backgroundColor": match_color,
+                                "cornerRadius": "md",
+                                "paddingAll": "3px",
+                                "flex": 2
+                            }
+                        ]
+                    },
+                    # 評分與租金
+                    {
+                        "type": "box",
+                        "layout": "horizontal",
+                        "margin": "md",
+                        "contents": [
+                            {"type": "text", "text": f"⭐ {house.avg_rating:.1f}", "size": "sm", "color": "#F59E0B"},
+                            {"type": "text", "text": f"${house.rent:,}/月", "size": "sm", "color": "#6366F1", "weight": "bold", "align": "end"}
+                        ]
+                    },
+                    # 推薦理由
+                    {
+                        "type": "text",
+                        "text": reason,
+                        "size": "xs",
+                        "color": "#666666",
+                        "wrap": True,
+                        "margin": "md"
+                    },
+                    # 特徵標籤
+                    {
+                        "type": "box",
+                        "layout": "horizontal",
+                        "margin": "md",
+                        "contents": feature_boxes
+                    }
+                ],
+                "paddingAll": "12px"
+            },
+            "footer": {
+                "type": "box",
+                "layout": "horizontal",
+                "contents": [
+                    {
+                        "type": "button",
+                        "action": {
+                            "type": "postback",
+                            "label": "❤️",
+                            "data": f"action=add_favorite&house_id={house.house_id}"
+                        },
+                        "style": "secondary",
+                        "height": "sm",
+                        "flex": 1
+                    },
+                    {
+                        "type": "button",
+                        "action": {
+                            "type": "uri",
+                            "label": "📍 詳情",
+                            "uri": f"{config.LIFF_URL}?propertyId={house.house_id}"
+                        },
+                        "style": "primary",
+                        "color": "#6366F1",
+                        "height": "sm",
+                        "flex": 2,
+                        "margin": "sm"
+                    }
+                ],
+                "paddingAll": "10px"
+            }
+        }
+        bubbles.append(bubble)
+    
+    # 添加「查看更多」卡片
+    next_offset = offset + 5
+    persona_name = persona.name if persona else "你"
+    
+    more_bubble = {
+        "type": "bubble",
+        "size": "kilo",
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "justifyContent": "center",
+            "alignItems": "center",
+            "contents": [
+                {"type": "text", "text": "🏠", "size": "3xl", "align": "center"},
+                {"type": "text", "text": "探索更多房源", "weight": "bold", "size": "lg", "align": "center", "margin": "md"},
+                {"type": "text", "text": f"還有更多適合{persona_name}的選擇", "size": "sm", "color": "#888888", "align": "center", "margin": "sm", "wrap": True}
+            ],
+            "paddingAll": "20px"
+        },
+        "footer": {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {
+                    "type": "button",
+                    "action": {
+                        "type": "postback",
+                        "label": "📄 查看更多",
+                        "data": f"action=show_more_houses&persona={persona_id}&offset={next_offset}"
+                    },
+                    "style": "primary",
+                    "color": "#6366F1"
+                }
+            ],
+            "paddingAll": "10px"
+        }
+    }
+    bubbles.append(more_bubble)
+    
+    return FlexContainer.from_dict({"type": "carousel", "contents": bubbles})
+

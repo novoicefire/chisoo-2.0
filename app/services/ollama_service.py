@@ -128,29 +128,30 @@ class OllamaService:
 
 📍 location_pref (字串): 地點偏好，歸類到以下三種之一：
    * "downtown" = 生活機能好、購物方便、熱鬧
-     （例：市區、菜市場、夜市、超商多、吃飯方便、便利）
+     （例：市區、菜市場、夜市、超商多、吃飯方便、便利、熱鬧、機能好、買東西方便）
    * "school" = 靠近學校、通勤方便
-     （例：學校附近、暨大、校門口、走路上課、近一點）
+     （例：學校附近、暨大、校門口、走路上課、近一點、離學校近、上課方便、通勤短）
    * "quiet" = 環境清幽、安靜、偏僻
-     （例：安靜、偏僻、人少、便宜的地方、清幽）
+     （例：安靜、偏僻、人少、便宜的地方、清幽、郊區、遠一點沒關係、不吵）
 
 📍 type_pref (字串): 房型偏好，歸類到以下三種之一：
    * "套房" = 獨立空間、有衛浴、隱私高、一個人住
-     （例：套房、獨立衛浴、自己住、不想共用廁所）
+     （例：套房、獨立衛浴、自己住、不想共用廁所、要有廁所、私人衛浴、隱私、一個人、
+     自己的衛浴、自己的廁所、不跟人共用、獨立的、不想分享、要有自己的）
    * "雅房" = 共用衛浴、價格較低、可接受室友
-     （例：雅房、便宜、共用衛浴、省錢）
+     （例：雅房、便宜、共用衛浴、省錢、分租、共用廁所也行、與室友分享）
    * "整層" = 整層公寓、與朋友合租、空間大
-     （例：整層、公寓、合租、跟朋友一起、三房）
+     （例：整層、公寓、合租、跟朋友一起、三房、透天、獨棟、一整層）
 
 📍 management_pref (字串): 房東管理偏好，歸類到以下四種之一：
    * "owner" = 房東同住，方便找人處理問題
-     （例：房東住、有人管、方便修繕）
+     （例：房東住、有人管、方便修繕、要房東、愛房東、房東要有、房東一起住、有房東比較好、希望房東在）
    * "pro" = 專業管理公司，有保障
-     （例：管理公司、專業、有制度）
+     （例：管理公司、專業、有制度、物業管理）
    * "no_owner" = 房東不住，自由度高
-     （例：房東不住、自由、不被打擾、獨立）
+     （例：房東不住、自由、不被打擾、獨立、不要房東、房東不要、不一起住、房東不要在、不想跟房東住）
    * "none" = 沒有偏好、都可以
-     （例：都可以、沒差、隨便、無所謂）
+     （例：都可以、沒差、隨便、無所謂、看情況）
 
 📍 features_preference (字串): 設施需求回答狀態
    - 當使用者完成設施需求回答時（說了具體設施或說「都可以」）→ 填入 "done"
@@ -162,8 +163,12 @@ class OllamaService:
 
 規則：
 1. 只提取使用者明確提到的資訊，沒提到的欄位不要輸出
-2. 用語意理解判斷使用者意圖，不要死板對照關鍵字
-3. 若無法判斷屬於哪一類，寧可不輸出該欄位"""
+2. 【重要】用語意理解判斷使用者意圖，不要死板對照關鍵字！
+   - 範例只是參考，遇到沒列出的說法請自行推理歸類
+   - 例如「我討厭跟別人住」→ 推斷為 type_pref: "套房" (想要隱私)
+   - 例如「房東很煩」→ 推斷為 management_pref: "no_owner" (不想房東同住)
+3. 若無法判斷屬於哪一類，寧可不輸出該欄位
+4. 理解使用者的真實需求，而非字面意思"""
 
         if topic == "management_pref":
              base_prompt += '\n5. 當前正在詢問「管理偏好」，若使用者回答「隨便/都可以/沒差」，請輸出 {"management_pref": "none"}'
@@ -292,7 +297,7 @@ class OllamaService:
         is_complete, missing = self.check_completeness(collected_data)
         
         if is_complete:
-            return True, "好的！我已經了解您的需求了。請輸入 『開始分析』 來查看您的專屬租屋人格診斷。"
+            return True, "✅ Step 2 完成！我已經收集完你的租屋需求了。\n\n請輸入『開始分析』來查看你的專屬租屋人格診斷 🎯"
         else:
             return False, self.generate_follow_up_question(missing)
     
@@ -336,6 +341,11 @@ class OllamaService:
         
         # 合併已收集的資料
         merged_data = {**collected_data, **extracted}
+        
+        # 自動補完邏輯：如果 AI 提取到 required_features，自動標記 features_preference 完成
+        if "required_features" in merged_data and merged_data["required_features"]:
+            merged_data["features_preference"] = "done"
+        
         print(f"📦 合併後資料: {merged_data}")
         
         # 判斷是否成功提取到資料
@@ -481,24 +491,33 @@ class OllamaService:
             result["location_pref"] = "school" # 隨便的話預設給學校(方便)
         
         # 解析房型偏好
-        if "套房" in text or user_input.strip() == "1":
+        # 套房相關關鍵字（獨立衛浴、隱私）
+        suite_keywords = ["套房", "獨立衛浴", "私人衛浴", "自己的衛浴", "自己的廁所",
+                          "不共用", "不想共用", "獨立的", "要有廁所", "要有衛浴",
+                          "一個人住", "自己住", "隱私"]
+        if any(kw in text for kw in suite_keywords) or user_input.strip() == "1":
             result["type_pref"] = "套房"
-        elif "雅房" in text or user_input.strip() == "2":
+        elif "雅房" in text or "共用衛浴" in text or "共用廁所" in text or user_input.strip() == "2":
             result["type_pref"] = "雅房"
-        elif "整層" in text or "公寓" in text or "合租" in text or user_input.strip() == "3":
+        elif "整層" in text or "公寓" in text or "合租" in text or "透天" in text or user_input.strip() == "3":
             result["type_pref"] = "整層"
         elif "隨便" in text and ("房型" in text or topic == "type_pref"):
             result["type_pref"] = "套房" # 預設
         
         # 解析管理偏好
-        if "房東同住" in text or "同住" in text or user_input.strip() == "1":
+        # 優先判斷「不要房東」(no_owner)，避免「房東」關鍵字誤判
+        if ("不住" in text or "不要住" in text or "自由" in text or
+            "不要房東" in text or "房東不要" in text or "不一起住" in text or 
+            "不同住" in text or "房東不" in text or user_input.strip() == "3"):
+            result["management_pref"] = "no_owner"
+        elif ("房東同住" in text or "同住" in text or "一起住" in text or
+              "要房東" in text or "房東要" in text or "有房東" in text or
+              "愛房東" in text or "房東在" in text or user_input.strip() == "1"):
             result["management_pref"] = "owner"
         elif "專業管理" in text or "管理公司" in text or user_input.strip() == "2":
             result["management_pref"] = "pro"
-        elif "不住" in text or "不要住" in text or "自由" in text or user_input.strip() == "3":
-            result["management_pref"] = "no_owner"
-        elif ("都可" in text or "無所謂" in text or "沒差" in text or user_input.strip() == "4" or "隨便" in text) and \
-             ("管理" in text or topic == "management_pref"):
+        elif (("都可" in text or "無所謂" in text or "沒差" in text or user_input.strip() == "4" or "隨便" in text) and 
+              (topic == "management_pref" or "管理" in text or "房東" in text)):
             result["management_pref"] = "none"
         
         # 解析設施需求 (改用自由文字陣列)
